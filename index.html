@@ -311,6 +311,7 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
+        // Variables principales
         let scene, camera, renderer;
         let cat;
         let gameSpeed = 0.4;
@@ -327,13 +328,12 @@
         let jumpVelocity = 0;
         
         let dayTime = 0.5;
-        let weather = 'clear';
         let combo = 0;
         let comboMultiplier = 1;
         let comboTimeout = null;
         let activePowerUps = {};
-        let ambientParticles = [];
         
+        // Arrays de objetos del juego
         let obstacles = [];
         let collectibles = [];
         let powerUps = [];
@@ -343,14 +343,16 @@
         let streetLights = [];
         let billboards = [];
         let trees = [];
+        let ambientParticles = [];
         
+        // Constantes físicas
         const JUMP_POWER = 0.22;
         const GRAVITY = 0.012;
         
-        // Texturas predefinidas para mejor rendimiento
+        // Cache de texturas
         const textureCache = {};
         
-        // Reusable geometries and materials
+        // Geometrías y materiales reutilizables
         const geometries = {
             car: new THREE.BoxGeometry(1.5, 0.8, 2.5),
             box: new THREE.BoxGeometry(1, 1, 1),
@@ -388,8 +390,23 @@
             streetLightGlow: new THREE.MeshPhongMaterial({ emissive: 0xffffcc, emissiveIntensity: 0.5 }),
             billboard: new THREE.MeshPhongMaterial({ side: THREE.DoubleSide })
         };
+
+        // Variables de control de rendimiento
+        let lastFrameTime = 0;
+        let frameCount = 0;
+        let lastFpsUpdate = 0;
+        let currentFps = 60;
+        const targetFps = 60;
+        const frameTime = 1000 / targetFps;
         
-        // Audio setup
+        // Límites para objetos
+        const MAX_PARTICLES = 100;
+        const MAX_AMBIENT_PARTICLES = 30;
+        const OBSTACLE_SPAWN_RATE = 0.02;
+        const COLLECTIBLE_SPAWN_RATE = 0.01;
+        const POWERUP_SPAWN_RATE = 0.005;
+        
+        // Configuración de audio
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const sounds = {
             collect: null,
@@ -423,11 +440,9 @@
             canvas.height = 512;
             const ctx = canvas.getContext('2d');
             
-            // Base gris oscuro
             ctx.fillStyle = '#2a2a2a';
             ctx.fillRect(0, 0, 512, 512);
             
-            // Textura de asfalto con variaciones
             ctx.fillStyle = '#333333';
             for(let i = 0; i < 512; i += 4) {
                 for(let j = 0; j < 512; j += 4) {
@@ -437,7 +452,6 @@
                 }
             }
             
-            // Líneas de carretera
             ctx.fillStyle = '#ffff00';
             for(let i = 0; i < 512; i += 64) {
                 ctx.fillRect(0, i, 512, 2);
@@ -467,7 +481,6 @@
             ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
             ctx.fillRect(0, 0, 256, 256);
             
-            // Ladrillos más oscuros
             ctx.fillStyle = `rgb(${r*0.7}, ${g*0.7}, ${b*0.7})`;
             for(let i = 0; i < 256; i += 32) {
                 for(let j = 0; j < 256; j += 16) {
@@ -477,7 +490,6 @@
                 }
             }
             
-            // Mortero
             ctx.fillStyle = '#696969';
             for(let i = 0; i < 256; i += 32) {
                 ctx.fillRect(i, 0, 2, 256);
@@ -499,16 +511,13 @@
             canvas.height = 64;
             const ctx = canvas.getContext('2d');
             
-            // Marco de ventana
             ctx.fillStyle = '#2F4F4F';
             ctx.fillRect(0, 0, 64, 64);
             
-            // Cristal
             if (lightOn) {
                 ctx.fillStyle = '#87CEEB';
                 ctx.fillRect(4, 4, 56, 56);
                 
-                // Reflexiones
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
                 ctx.fillRect(10, 10, 20, 20);
                 ctx.fillRect(40, 40, 10, 10);
@@ -516,7 +525,6 @@
                 ctx.fillStyle = '#1a1a2e';
                 ctx.fillRect(4, 4, 56, 56);
                 
-                // Algunas ventanas tienen luces tenues
                 if (Math.random() > 0.7) {
                     ctx.fillStyle = 'rgba(135, 206, 235, 0.3)';
                     ctx.fillRect(15, 15, 10, 10);
@@ -535,11 +543,9 @@
             canvas.height = 128;
             const ctx = canvas.getContext('2d');
             
-            // Textura de edificio moderna
             ctx.fillStyle = '#404040';
             ctx.fillRect(0, 0, 128, 128);
             
-            // Paneles de vidrio y metal
             ctx.fillStyle = '#606060';
             for(let i = 0; i < 128; i += 16) {
                 for(let j = 0; j < 128; j += 16) {
@@ -602,16 +608,13 @@
             canvas.height = 192;
             const ctx = canvas.getContext('2d');
             
-            // Fondo
             ctx.fillStyle = ad.bg;
             ctx.fillRect(0, 0, 256, 192);
             
-            // Borde
             ctx.strokeStyle = 'white';
             ctx.lineWidth = 4;
             ctx.strokeRect(2, 2, 252, 188);
             
-            // Texto
             ctx.fillStyle = ad.color;
             ctx.font = 'bold 40px Arial';
             ctx.textAlign = 'center';
@@ -625,7 +628,6 @@
             console.log('Inicializando juego...');
             
             scene = new THREE.Scene();
-            
             updateSkyColor();
             
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -635,7 +637,7 @@
             const canvas = document.getElementById('gameCanvas');
             renderer = new THREE.WebGLRenderer({ 
                 canvas, 
-                antialias: true,
+                antialias: false,
                 powerPreference: "high-performance"
             });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -644,15 +646,14 @@
             renderer.physicallyCorrectLights = true;
             renderer.outputEncoding = THREE.sRGBEncoding;
             
-            // Mejor iluminación
             const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
             scene.add(ambientLight);
             
             const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
             directionalLight.position.set(10, 20, 10);
             directionalLight.castShadow = true;
-            directionalLight.shadow.mapSize.width = 2048;
-            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.mapSize.width = 1024;
+            directionalLight.shadow.mapSize.height = 1024;
             directionalLight.shadow.camera.near = 0.5;
             directionalLight.shadow.camera.far = 50;
             directionalLight.shadow.camera.left = -20;
@@ -661,11 +662,9 @@
             directionalLight.shadow.camera.bottom = -20;
             scene.add(directionalLight);
             
-            // Luz ambiental para efecto de ciudad
             const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x8B4513, 0.4);
             scene.add(hemiLight);
             
-            // Luces de neón/ciudad
             const cityLight1 = new THREE.PointLight(0xff4444, 0.5, 30);
             cityLight1.position.set(-20, 15, -50);
             scene.add(cityLight1);
@@ -677,46 +676,11 @@
             createCat();
             createInitialScene();
             
-            // Load sounds (using placeholder URLs, replace with actual audio files)
             loadSound('https://example.com/collect.mp3', 'collect');
             loadSound('https://example.com/powerup.mp3', 'powerUp');
             loadSound('https://example.com/hit.mp3', 'hit');
             
-            // Touch controls
-            document.getElementById('leftBtn').addEventListener('touchstart', () => {
-                if (currentLane > 0) currentLane--;
-            });
-            document.getElementById('rightBtn').addEventListener('touchstart', () => {
-                if (currentLane < 2) currentLane++;
-            });
-            document.getElementById('jumpBtn').addEventListener('touchstart', (e) => {
-                if (!isJumping && cat.position.y <= 0.9) {
-                    isJumping = true;
-                    jumpVelocity = JUMP_POWER;
-                    e.preventDefault();
-                }
-            });
-            document.getElementById('slideBtn').addEventListener('touchstart', () => {
-                if (!isJumping && !isSliding) {
-                    isSliding = true;
-                    cat.scale.y = 0.5;
-                    cat.position.y = 0.5;
-                }
-            });
-            document.getElementById('slideBtn').addEventListener('touchend', () => {
-                if (isSliding) {
-                    isSliding = false;
-                    cat.scale.y = 1;
-                }
-            });
-            
-            document.addEventListener('keydown', onKeyDown);
-            document.addEventListener('keyup', onKeyUp);
-            window.addEventListener('resize', onResize);
-            
-            document.getElementById('startBtn').addEventListener('click', startGame);
-            document.getElementById('restartBtn').addEventListener('click', restartGame);
-            document.getElementById('pauseBtn').addEventListener('click', togglePause);
+            setupEventListeners();
             
             updateUI();
             renderer.render(scene, camera);
@@ -746,7 +710,7 @@
             const white = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 40 });
             const pink = new THREE.MeshPhongMaterial({ color: 0xffb6c1 });
             
-            const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 12), gray);
+            const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 10), gray);
             body.scale.set(1, 0.8, 1.3);
             body.castShadow = true;
             cat.add(body);
@@ -756,7 +720,7 @@
             chest.scale.set(0.8, 0.9, 0.6);
             cat.add(chest);
             
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12), gray);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), gray);
             head.position.set(0, 0.35, 0.35);
             head.castShadow = true;
             cat.add(head);
@@ -840,28 +804,28 @@
         }
         
         function createInitialScene() {
-            for(let i = 0; i < 20; i++) {
+            for(let i = 0; i < 15; i++) {
                 createGround(i * 10 - 50);
             }
             
-            for(let i = 0; i < 15; i++) {
+            for(let i = 0; i < 10; i++) {
                 createBuilding(i * 15 - 100, -18);
                 createBuilding(i * 15 - 100, 18);
             }
             
-            for(let i = 0; i < 10; i++) {
+            for(let i = 0; i < 8; i++) {
                 createStreetLight(i * 20 - 80);
             }
             
-            for(let i = 0; i < 5; i++) {
+            for(let i = 0; i < 3; i++) {
                 createBillboard(i * 40 - 60);
             }
             
-            for(let i = 0; i < 8; i++) {
+            for(let i = 0; i < 6; i++) {
                 createTree(i * 25 - 70);
             }
             
-            for(let i = 0; i < 30; i++) {
+            for(let i = 0; i < 20; i++) {
                 createAmbientParticle();
             }
             
@@ -884,7 +848,6 @@
             scene.add(ground);
             groundTiles.push(ground);
             
-            // Bordes de la carretera
             const borderGeo = new THREE.PlaneGeometry(2, 10);
             const borderMat = new THREE.MeshPhongMaterial({ color: 0x444444 });
             const leftBorder = new THREE.Mesh(borderGeo, borderMat);
@@ -911,29 +874,20 @@
             
             const buildingGeo = new THREE.BoxGeometry(width, height, depth);
             
-            // Crear materiales diferentes para cada cara
-            const buildingMaterials = [
-                new THREE.MeshPhongMaterial({ map: brickTexture }), // right
-                new THREE.MeshPhongMaterial({ map: brickTexture }), // left
-                new THREE.MeshPhongMaterial({ color: 0x1a1a1a }), // top
-                new THREE.MeshPhongMaterial({ color: 0x333333 }), // bottom
-                new THREE.MeshPhongMaterial({ map: brickTexture }), // front
-                new THREE.MeshPhongMaterial({ map: brickTexture })  // back
-            ];
+            const buildingMaterial = new THREE.MeshPhongMaterial({ map: brickTexture });
             
-            const building = new THREE.Mesh(buildingGeo, buildingMaterials);
+            const building = new THREE.Mesh(buildingGeo, buildingMaterial);
             building.position.set(x, height / 2, z);
             building.castShadow = true;
             building.receiveShadow = true;
             
-            // Agregar ventanas
-            const windowSpacing = 2;
+            const windowSpacing = 3;
             const windowRows = Math.floor(height / windowSpacing) - 1;
             const windowCols = Math.floor(width / windowSpacing);
             
             for(let row = 0; row < windowRows; row++) {
                 for(let col = 0; col < windowCols; col++) {
-                    if(Math.random() > 0.3) { // No todas las ventanas tienen luces
+                    if(Math.random() > 0.5) {
                         const window = createWindowMesh();
                         window.position.set(
                             (col - (windowCols-1)/2) * windowSpacing,
@@ -945,8 +899,7 @@
                 }
             }
             
-            // Agregar detalles en el techo
-            if(Math.random() > 0.5) {
+            if(Math.random() > 0.7) {
                 const roofGeo = new THREE.CylinderGeometry(width/2, width/2, 1, 4);
                 const roof = new THREE.Mesh(roofGeo, new THREE.MeshPhongMaterial({ color: 0x8B0000 }));
                 roof.position.y = height + 0.5;
@@ -975,18 +928,15 @@
         function createStreetLight(z) {
             const lightGroup = new THREE.Group();
             
-            // Poste
             const pole = new THREE.Mesh(geometries.streetLightPole, materials.streetLight);
             pole.position.y = 1.5;
             pole.castShadow = true;
             lightGroup.add(pole);
             
-            // Cabeza de la farola
             const lightHead = new THREE.Mesh(geometries.streetLightHead, materials.streetLightGlow);
             lightHead.position.y = 3;
             lightGroup.add(lightHead);
             
-            // Luz
             const light = new THREE.PointLight(0xffffcc, 0.8, 10);
             light.position.y = 3;
             lightGroup.add(light);
@@ -999,20 +949,17 @@
         function createBillboard(z) {
             const billboardGroup = new THREE.Group();
             
-            // Poste
             const pole = new THREE.Mesh(geometries.streetLightPole, materials.streetLight);
             pole.scale.set(1, 2, 1);
             pole.position.y = 2;
             billboardGroup.add(pole);
             
-            // Cartel
             const billboard = new THREE.Mesh(geometries.billboard, materials.billboard);
             billboard.position.y = 4;
             billboard.rotation.y = Math.PI / 2;
             billboard.material.map = createBillboardTexture();
             billboardGroup.add(billboard);
             
-            // Luz direccional para el cartel
             const spotLight = new THREE.SpotLight(0xffffff, 0.3, 20, Math.PI / 8);
             spotLight.position.set(0, 5, 0);
             spotLight.target.position.set(0, 4, 2);
@@ -1027,13 +974,11 @@
         function createTree(z) {
             const treeGroup = new THREE.Group();
             
-            // Tronco
             const trunk = new THREE.Mesh(geometries.treeTrunk, materials.treeTrunk);
             trunk.position.y = 0.5;
             trunk.castShadow = true;
             treeGroup.add(trunk);
             
-            // Copa del árbol
             const top = new THREE.Mesh(geometries.treeTop, materials.treeTop);
             top.position.y = 1.5;
             top.castShadow = true;
@@ -1049,19 +994,19 @@
         }
         
         function createObstacle() {
+            if (obstacles.length > 20) return;
+            
             const lane = lanes[Math.floor(Math.random() * 3)];
-            const type = Math.floor(Math.random() * 4); // 4 tipos de obstáculos ahora
+            const type = Math.floor(Math.random() * 4);
             let obstacle;
             
             if(type === 0) {
-                // Coche
                 const carColors = [0xff0000, 0x0000ff, 0x00ff00, 0xffff00, 0xff00ff];
                 materials.car.color.setHex(carColors[Math.floor(Math.random() * carColors.length)]);
                 obstacle = new THREE.Mesh(geometries.car, materials.car);
                 obstacle.position.y = 0.4;
                 obstacle.castShadow = true;
             } else if(type === 1) {
-                // Caja
                 const boxCanvas = document.createElement('canvas');
                 boxCanvas.width = 128;
                 boxCanvas.height = 128;
@@ -1078,12 +1023,10 @@
                 obstacle.position.y = 0.5;
                 obstacle.castShadow = true;
             } else if(type === 2) {
-                // Cono
                 obstacle = new THREE.Mesh(geometries.cone, materials.cone);
                 obstacle.position.y = 0.4;
                 obstacle.castShadow = true;
             } else {
-                // Barril
                 const barrelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.8, 8);
                 const barrelMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
                 obstacle = new THREE.Mesh(barrelGeo, barrelMat);
@@ -1147,6 +1090,8 @@
         }
         
         function createAmbientParticle() {
+            if (ambientParticles.length >= MAX_AMBIENT_PARTICLES) return;
+            
             const types = ['leaf', 'sparkle', 'paper'];
             const type = types[Math.floor(Math.random() * types.length)];
             
@@ -1175,6 +1120,8 @@
         }
         
         function createParticle(x, y, z) {
+            if (particles.length >= MAX_PARTICLES) return;
+            
             const colors = [0xffd700, 0xffa500, 0xffff00];
             materials.particle.color.setHex(colors[Math.floor(Math.random() * colors.length)]);
             const particle = new THREE.Mesh(geometries.particle, materials.particle);
@@ -1189,7 +1136,7 @@
             particles.push(particle);
         }
         
-               function onKeyDown(e) {
+        function onKeyDown(e) {
             if(!gameStarted || gameOver) return;
             
             if(e.key === 'ArrowLeft' && currentLane > 0) {
@@ -1245,7 +1192,6 @@
             
             if(!isJumping && !isSliding) {
                 cat.position.y = 0.8 + Math.abs(Math.sin(Date.now() * 0.01)) * 0.05;
-                // Running animation
                 cat.children.forEach(child => {
                     if (child.userData.isLeg) {
                         const phase = child.userData.index % 2 === 0 ? 1 : -1;
@@ -1453,7 +1399,6 @@
             dayTime = 0.5 + Math.sin(Date.now() * 0.0001) * 0.5;
             updateSkyColor();
             
-            // Actualizar suelo
             for(let i = groundTiles.length - 1; i >= 0; i--) {
                 groundTiles[i].position.z += gameSpeed * (activePowerUps.speed ? 1.5 : 1);
                 if(groundTiles[i].position.z > 30) {
@@ -1462,11 +1407,10 @@
                 }
             }
             
-            if(groundTiles.length < 40) {
+            if(groundTiles.length < 30) {
                 createGround(-100);
             }
             
-            // Actualizar edificios
             for(let i = buildings.length - 1; i >= 0; i--) {
                 buildings[i].position.z += gameSpeed * (activePowerUps.speed ? 1.5 : 1);
                 if(buildings[i].position.z > 50) {
@@ -1475,12 +1419,11 @@
                 }
             }
             
-            if(Math.random() < 0.02) {
+            if(Math.random() < 0.01) {
                 createBuilding(-100, -18);
                 createBuilding(-100, 18);
             }
             
-            // Actualizar farolas
             for(let i = streetLights.length - 1; i >= 0; i--) {
                 streetLights[i].position.z += gameSpeed * (activePowerUps.speed ? 1.5 : 1);
                 if(streetLights[i].position.z > 30) {
@@ -1489,11 +1432,10 @@
                 }
             }
             
-            if(Math.random() < 0.01) {
+            if(Math.random() < 0.008) {
                 createStreetLight(-80);
             }
             
-            // Actualizar carteles
             for(let i = billboards.length - 1; i >= 0; i--) {
                 billboards[i].position.z += gameSpeed * (activePowerUps.speed ? 1.5 : 1);
                 if(billboards[i].position.z > 30) {
@@ -1502,11 +1444,10 @@
                 }
             }
             
-            if(Math.random() < 0.005) {
+            if(Math.random() < 0.003) {
                 createBillboard(-60);
             }
             
-            // Actualizar árboles
             for(let i = trees.length - 1; i >= 0; i--) {
                 trees[i].position.z += gameSpeed * (activePowerUps.speed ? 1.5 : 1);
                 if(trees[i].position.z > 30) {
@@ -1515,7 +1456,7 @@
                 }
             }
             
-            if(Math.random() < 0.008) {
+            if(Math.random() < 0.006) {
                 createTree(-70);
             }
         }
@@ -1545,6 +1486,43 @@
             document.getElementById('highScore').textContent = `High Score: ${Math.floor(highScore)}`;
         }
         
+        function setupEventListeners() {
+            document.getElementById('leftBtn').addEventListener('touchstart', () => {
+                if (currentLane > 0) currentLane--;
+            });
+            document.getElementById('rightBtn').addEventListener('touchstart', () => {
+                if (currentLane < 2) currentLane++;
+            });
+            document.getElementById('jumpBtn').addEventListener('touchstart', (e) => {
+                if (!isJumping && cat.position.y <= 0.9) {
+                    isJumping = true;
+                    jumpVelocity = JUMP_POWER;
+                    e.preventDefault();
+                }
+            });
+            document.getElementById('slideBtn').addEventListener('touchstart', () => {
+                if (!isJumping && !isSliding) {
+                    isSliding = true;
+                    cat.scale.y = 0.5;
+                    cat.position.y = 0.5;
+                }
+            });
+            document.getElementById('slideBtn').addEventListener('touchend', () => {
+                if (isSliding) {
+                    isSliding = false;
+                    cat.scale.y = 1;
+                }
+            });
+            
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            window.addEventListener('resize', onResize);
+            
+            document.getElementById('startBtn').addEventListener('click', startGame);
+            document.getElementById('restartBtn').addEventListener('click', restartGame);
+            document.getElementById('pauseBtn').addEventListener('click', togglePause);
+        }
+        
         function startGame() {
             console.log('Iniciando juego...');
             document.getElementById('startScreen').style.display = 'none';
@@ -1567,7 +1545,6 @@
         }
         
         function restartGame() {
-            // Limpiar todos los objetos del juego
             obstacles.forEach(o => scene.remove(o));
             collectibles.forEach(c => scene.remove(c));
             powerUps.forEach(p => scene.remove(p));
@@ -1589,7 +1566,6 @@
             trees = [];
             activePowerUps = {};
             
-            // Reiniciar variables del juego
             score = 0;
             coins = 0;
             gameSpeed = 0.4;
@@ -1604,10 +1580,8 @@
             gameOver = false;
             gamePaused = false;
             
-            // Recrear escena inicial
             createInitialScene();
             
-            // Actualizar UI
             document.getElementById('gameOver').style.display = 'none';
             document.getElementById('combo').style.display = 'none';
             document.getElementById('powerUpIndicator').style.display = 'none';
@@ -1624,8 +1598,17 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
         
-        function animate() {
+        function animate(currentTime) {
             if(gameOver || gamePaused) return;
+            
+            const deltaTime = currentTime - lastFrameTime;
+            
+            if (deltaTime < frameTime) {
+                requestAnimationFrame(animate);
+                return;
+            }
+            
+            lastFrameTime = currentTime - (deltaTime % frameTime);
             
             requestAnimationFrame(animate);
             
@@ -1633,15 +1616,15 @@
                 gameSpeed += 0.0001;
             }
             
-            if(Math.random() < 0.02) {
+            if(Math.random() < OBSTACLE_SPAWN_RATE) {
                 createObstacle();
             }
             
-            if(Math.random() < 0.01) {
+            if(Math.random() < COLLECTIBLE_SPAWN_RATE) {
                 createCollectible();
             }
             
-            if(Math.random() < 0.005) {
+            if(Math.random() < POWERUP_SPAWN_RATE) {
                 createPowerUp();
             }
             
@@ -1658,13 +1641,19 @@
                 updateUI();
             }
             
-            // Smooth camera movement
             const targetCameraX = cat.position.x * 0.2;
             camera.position.x += (targetCameraX - camera.position.x) * 0.1;
             camera.position.z = 10 + gameSpeed * 2;
             camera.lookAt(cat.position.x * 0.3, 1, 0);
             
             renderer.render(scene, camera);
+            
+            frameCount++;
+            if (currentTime - lastFpsUpdate >= 1000) {
+                currentFps = frameCount;
+                frameCount = 0;
+                lastFpsUpdate = currentTime;
+            }
         }
         
         window.addEventListener('load', () => {
