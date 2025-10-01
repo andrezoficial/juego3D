@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paco in the City Runner 3D</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow: hidden;
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        #gameCanvas {
+            display: block;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        .stat-box {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 15px 25px;
+            border-radius: 15px;
+            color: white;
+            font-weight: 600;
+            font-size: 24px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        #score {
+            top: 20px;
+            left: 20px;
+        }
+        
+        #coins {
+            top: 20px;
+            right: 20px;
+            color: #FFD700;
+        }
+        
+        #speed {
+            bottom: 20px;
+            right: 20px;
+            color: #00ff88;
+        }
+        
+        #combo {
+            top: 80px;
+            left: 20px;
+            color: #ff6b6b;
+            display: none;
+        }
+        
+        #highScore {
+            top: 140px;
+            left: 20px;
+            color: #FFD700;
+        }
+        
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 40px 50px;
+            border-radius: 25px;
+            text-align: center;
+            display: none;
+            pointer-events: all;
+            color: white;
+        }
+        
+        #gameOver h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #FFD700;
+        }
+        
+        #finalScore {
+            font-size: 32px;
+            margin: 20px 0;
+        }
+        
+        #restartBtn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 22px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 700;
+            margin-top: 20px;
+        }
+        
+        #restartBtn:hover {
+            transform: scale(1.05);
+        }
+        
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px 25px;
+            border-radius: 12px;
+            color: white;
+        }
+        
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 100;
+        }
+        
+        #startScreen h1 {
+            color: white;
+            font-size: 64px;
+            margin-bottom: 30px;
+            font-weight: 900;
+        }
+        
+        #startBtn {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 20px 50px;
+            font-size: 26px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        
+        #startBtn:hover {
+            transform: scale(1.1);
+        }
+        
+        #pauseBtn {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            pointer-events: all;
+            display: none;
+        }
+        
+        #powerUpIndicator {
+            position: absolute;
+            bottom: 80px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
+            border-radius: 10px;
+            color: white;
+            display: none;
+        }
+        
+        .screen-effect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        #speedEffect {
+            background: radial-gradient(circle, rgba(0,255,136,0.2) 0%, transparent 70%);
+        }
+        
+        #magnetEffect {
+            background: radial-gradient(circle, rgba(255,215,0,0.2) 0%, transparent 70%);
+        }
+        
+        #shieldEffect {
+            background: radial-gradient(circle, rgba(0,150,255,0.2) 0%, transparent 70%);
+        }
+        
+        .touch-controls {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            pointer-events: all;
+            z-index: 20;
+            display: none;
+        }
+        
+        .touch-btn {
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+            border: none;
+            padding: 20px;
+            border-radius: 15px;
+            font-size: 24px;
+            color: white;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        
+        @media (max-width: 768px) {
+            .touch-controls {
+                display: flex;
+            }
+            #instructions {
+                bottom: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div class="stat-box" id="score">Puntos: 0</div>
+        <div class="stat-box" id="coins">🐟 0</div>
+        <div class="stat-box" id="speed">⚡ 0 km/h</div>
+        <div class="stat-box" id="combo">Combo: x1</div>
+        <div class="stat-box" id="highScore">High Score: 0</div>
+        <div id="powerUpIndicator"></div>
+        <button id="pauseBtn">PAUSA</button>
+        <div id="instructions">
+            ← → Mover | ESPACIO Saltar | SHIFT Deslizar | Toca en móviles
+        </div>
+        <div id="gameOver">
+            <h2>¡GAME OVER!</h2>
+            <div id="finalScore">Puntuación: 0</div>
+            <div id="finalCoins">Peces: 0</div>
+            <div id="finalHighScore">High Score: 0</div>
+            <button id="restartBtn">JUGAR DE NUEVO</button>
+        </div>
+        <div class="touch-controls">
+            <button class="touch-btn" id="leftBtn">←</button>
+            <button class="touch-btn" id="jumpBtn">↑</button>
+            <button class="touch-btn" id="slideBtn">↓</button>
+            <button class="touch-btn" id="rightBtn">→</button>
+        </div>
+    </div>
+    
+    <div id="startScreen">
+        <h1>🐱 PACO IN THE CITY RUNNER</h1>
+        <button id="startBtn">COMENZAR</button>
+    </div>
+    
+    <div class="screen-effect" id="speedEffect"></div>
+    <div class="screen-effect" id="magnetEffect"></div>
+    <div class="screen-effect" id="shieldEffect"></div>
+    
+    <canvas id="gameCanvas"></canvas>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer;
+        let cat;
+        let gameSpeed = 0.4;
+        let score = 0;
+        let coins = 0;
+        let highScore = localStorage.getItem('highScore') ? parseInt(localStorage.getItem('highScore')) : 0;
+        let isJumping = false;
+        let isSliding = false;
+        let gameOver = false;
+        let gameStarted = false;
+        let gamePaused = false;
+        let lanes = [-2.5, 0, 2.5];
+        let currentLane = 1;
+        let jumpVelocity = 0;
+        
+        let dayTime = 0.5;
+        let weather = 'clear';
+        let combo = 0;
+        let comboMultiplier = 1;
+        let comboTimeout = null;
+        let activePowerUps = {};
+        let ambientParticles = [];
+        
+        let obstacles = [];
+        let collectibles = [];
+        let powerUps = [];
+        let buildings = [];
+        let groundTiles = [];
+        let particles = [];
+        
+        const JUMP_POWER = 0.22;
+        const GRAVITY = 0.012;
+        
+        // Reusable geometries and materials
+        const geometries = {
+            car: new THREE.BoxGeometry(1.5, 0.8, 2.5),
+            box: new THREE.BoxGeometry(1, 1, 1),
+            cone: new THREE.CylinderGeometry(0, 0.3, 0.8, 8),
+            fishBody: new THREE.SphereGeometry(0.3, 12, 8),
+            fishTail: new THREE.ConeGeometry(0.2, 0.3, 4),
+            powerUp: new THREE.SphereGeometry(0.4),
+            particle: new THREE.SphereGeometry(0.1),
+            leaf: new THREE.PlaneGeometry(0.2, 0.2),
+            sparkle: new THREE.SphereGeometry(0.05),
+            paper: new THREE.PlaneGeometry(0.1, 0.15)
+        };
+        
+        const materials = {
+            car: new THREE.MeshPhongMaterial({ shininess: 100, specular: 0x222222 }),
+            box: new THREE.MeshPhongMaterial({}),
+            cone: new THREE.MeshPhongMaterial({ color: 0xff6600, shininess: 80, specular: 0x222222 }),
+            fish: new THREE.MeshPhongMaterial({ emissive: 0xffd700, emissiveIntensity: 0.5, shininess: 100 }),
+            powerUp: new THREE.MeshPhongMaterial({ emissiveIntensity: 0.3, shininess: 100 }),
+            particle: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.8 }),
+            leaf: new THREE.MeshBasicMaterial({ color: 0x8FBC8F, transparent: true, opacity: 0.7, side: THREE.DoubleSide }),
+            sparkle: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 }),
+            paper: new THREE.MeshBasicMaterial({ color: 0xf5f5f5, transparent: true, opacity: 0.6, side: THREE.DoubleSide })
+        };
+        
+        // Audio setup
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const sounds = {
+            collect: null,
+            powerUp: null,
+            hit: null
+        };
+        
+        function loadSound(url, key) {
+            fetch(url)
+                .then(response => response.arrayBuffer())
+                .then(data => audioContext.decodeAudioData(data))
+                .then(buffer => {
+                    sounds[key] = buffer;
+                })
+                .catch(err => console.error('Error loading sound:', err));
+        }
+        
+        function playSound(key) {
+            if (!sounds[key]) return;
+            const source = audioContext.createBufferSource();
+            source.buffer = sounds[key];
+            source.connect(audioContext.destination);
+            source.start(0);
+        }
+        
+        function createAsphaltTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#333333';
+            ctx.fillRect(0, 0, 256, 256);
+            
+            ctx.fillStyle = '#444444';
+            for(let i = 0; i < 256; i += 8) {
+                for(let j = 0; j < 256; j += 8) {
+                    if((i + j) % 16 === 0) {
+                        ctx.fillRect(i, j, 4, 4);
+                    }
+                }
+            }
+            
+            ctx.fillStyle = '#ffffff';
+            for(let i = 0; i < 256; i += 32) {
+                ctx.fillRect(0, i, 256, 2);
+            }
+            
+            return new THREE.CanvasTexture(canvas);
+        }
+        
+        function createBrickTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#8B0000';
+            ctx.fillRect(0, 0, 256, 256);
+            
+            ctx.fillStyle = '#A52A2A';
+            for(let i = 0; i < 256; i += 32) {
+                for(let j = 0; j < 256; j += 16) {
+                    if((i / 32 + j / 16) % 2 === 0) {
+                        ctx.fillRect(i, j, 30, 14);
+                    }
+                }
+            }
+            
+            ctx.fillStyle = '#696969';
+            for(let i = 0; i < 256; i += 32) {
+                ctx.fillRect(i, 0, 2, 256);
+            }
+            for(let j = 0; j < 256; j += 16) {
+                ctx.fillRect(0, j, 256, 2);
+            }
+            
+            return new THREE.CanvasTexture(canvas);
+        }
+        
+        function createWindowTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#2F4F4F';
+            ctx.fillRect(0, 0, 64, 64);
+            
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(4, 4, 56, 56);
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.fillRect(10, 10, 20, 20);
+            
+            return new THREE.CanvasTexture(canvas);
+        }
+        
+        function createFishTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.ellipse(64, 32, 40, 20, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#FFA500';
+            ctx.beginPath();
+            ctx.ellipse(64, 32, 35, 15, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#FF8C00';
+            for(let i = 0; i < 5; i++) {
+                ctx.beginPath();
+                ctx.ellipse(40 + i * 10, 32, 5, 8, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.arc(85, 25, 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            return new THREE.CanvasTexture(canvas);
+        }
+        
+        function init() {
+            console.log('Inicializando juego...');
+            
+            scene = new THREE.Scene();
+            
+            updateSkyColor();
+            
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 10);
+            camera.lookAt(0, 0, 0);
+            
+            const canvas = document.getElementById('gameCanvas');
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 20, 10);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 50;
+            directionalLight.shadow.camera.left = -20;
+            directionalLight.shadow.camera.right = 20;
+            directionalLight.shadow.camera.top = 20;
+            directionalLight.shadow.camera.bottom = -20;
+            scene.add(directionalLight);
+            
+            const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x8B4513, 0.3);
+            scene.add(hemiLight);
+            
+            createCat();
+            createInitialScene();
+            
+            // Load sounds (using placeholder URLs, replace with actual audio files)
+            loadSound('https://example.com/collect.mp3', 'collect');
+            loadSound('https://example.com/powerup.mp3', 'powerUp');
+            loadSound('https://example.com/hit.mp3', 'hit');
+            
+            // Touch controls
+            document.getElementById('leftBtn').addEventListener('touchstart', () => {
+                if (currentLane > 0) currentLane--;
+            });
+            document.getElementById('rightBtn').addEventListener('touchstart', () => {
+                if (currentLane < 2) currentLane++;
+            });
+            document.getElementById('jumpBtn').addEventListener('touchstart', (e) => {
+                if (!isJumping && cat.position.y <= 0.9) {
+                    isJumping = true;
+                    jumpVelocity = JUMP_POWER;
+                    e.preventDefault();
+                }
+            });
+            document.getElementById('slideBtn').addEventListener('touchstart', () => {
+                if (!isJumping && !isSliding) {
+                    isSliding = true;
+                    cat.scale.y = 0.5;
+                    cat.position.y = 0.5;
+                }
+            });
+            document.getElementById('slideBtn').addEventListener('touchend', () => {
+                if (isSliding) {
+                    isSliding = false;
+                    cat.scale.y = 1;
+                }
+            });
+            
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            window.addEventListener('resize', onResize);
+            
+            document.getElementById('startBtn').addEventListener('click', startGame);
+            document.getElementById('restartBtn').addEventListener('click', restartGame);
+            document.getElementById('pauseBtn').addEventListener('click', togglePause);
+            
+            updateUI();
+            renderer.render(scene, camera);
+            console.log('Juego inicializado');
+        }
+        
+        function updateSkyColor() {
+            const dayColor = new THREE.Color(0x87CEEB);
+            const nightColor = new THREE.Color(0x191970);
+            const currentColor = dayColor.clone().lerp(nightColor, 1 - dayTime);
+            
+            scene.background = currentColor;
+            
+            if (!scene.fog) {
+                scene.fog = new THREE.Fog(currentColor, 50, 200);
+            } else {
+                scene.fog.color = currentColor;
+            }
+        }
+        
+        function createCat() {
+            cat = new THREE.Group();
+            
+            const gray = new THREE.MeshPhongMaterial({ color: 0x808080, shininess: 30, specular: 0x222222 });
+            const white = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 40 });
+            const pink = new THREE.MeshPhongMaterial({ color: 0xffb6c1 });
+            
+            const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 12), gray);
+            body.scale.set(1, 0.8, 1.3);
+            body.castShadow = true;
+            cat.add(body);
+            
+            const chest = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), white);
+            chest.position.set(0, 0, 0.3);
+            chest.scale.set(0.8, 0.9, 0.6);
+            cat.add(chest);
+            
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12), gray);
+            head.position.set(0, 0.35, 0.35);
+            head.castShadow = true;
+            cat.add(head);
+            
+            const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), white);
+            muzzle.position.set(0, 0.25, 0.6);
+            muzzle.scale.set(0.7, 0.6, 0.5);
+            cat.add(muzzle);
+            
+            const nose = new THREE.Mesh(new THREE.SphereGeometry(0.04), pink);
+            nose.position.set(0, 0.28, 0.75);
+            cat.add(nose);
+            
+            const earGeo = new THREE.ConeGeometry(0.15, 0.3, 4);
+            const leftEar = new THREE.Mesh(earGeo, gray);
+            leftEar.position.set(-0.18, 0.55, 0.3);
+            leftEar.rotation.z = -0.3;
+            cat.add(leftEar);
+            
+            const rightEar = new THREE.Mesh(earGeo, gray);
+            rightEar.position.set(0.18, 0.55, 0.3);
+            rightEar.rotation.z = 0.3;
+            cat.add(rightEar);
+            
+            const eyeGeo = new THREE.SphereGeometry(0.07);
+            const eyeWhite = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 100 });
+            const leftEye = new THREE.Mesh(eyeGeo, eyeWhite);
+            leftEye.position.set(-0.12, 0.38, 0.62);
+            leftEye.scale.set(1, 1.2, 0.5);
+            cat.add(leftEye);
+            
+            const rightEye = new THREE.Mesh(eyeGeo, eyeWhite);
+            rightEye.position.set(0.12, 0.38, 0.62);
+            rightEye.scale.set(1, 1.2, 0.5);
+            cat.add(rightEye);
+            
+            const pupilGeo = new THREE.SphereGeometry(0.05);
+            const pupilGreen = new THREE.MeshPhongMaterial({ color: 0x90ee90, shininess: 80 });
+            const leftPupil = new THREE.Mesh(pupilGeo, pupilGreen);
+            leftPupil.position.set(-0.12, 0.38, 0.7);
+            cat.add(leftPupil);
+            
+            const rightPupil = new THREE.Mesh(pupilGeo, pupilGreen);
+            rightPupil.position.set(0.12, 0.38, 0.7);
+            cat.add(rightPupil);
+            
+            const pupilBlack = new THREE.MeshPhongMaterial({ color: 0x000000 });
+            const leftIris = new THREE.Mesh(new THREE.SphereGeometry(0.025), pupilBlack);
+            leftIris.position.set(-0.12, 0.38, 0.73);
+            leftIris.scale.set(0.7, 1.3, 1);
+            cat.add(leftIris);
+            
+            const rightIris = new THREE.Mesh(new THREE.SphereGeometry(0.025), pupilBlack);
+            rightIris.position.set(0.12, 0.38, 0.73);
+            rightIris.scale.set(0.7, 1.3, 1);
+            cat.add(rightIris);
+            
+            for(let i = 0; i < 4; i++) {
+                const legGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.4);
+                const leg = new THREE.Mesh(legGeo, i < 2 ? gray : white);
+                leg.position.x = (i % 2 === 0) ? -0.18 : 0.18;
+                leg.position.y = -0.35;
+                leg.position.z = (i < 2) ? 0.2 : -0.2;
+                leg.castShadow = true;
+                leg.userData = { isLeg: true, index: i };
+                cat.add(leg);
+            }
+            
+            for(let i = 0; i < 8; i++) {
+                const tailGeo = new THREE.SphereGeometry(0.08 - i * 0.008);
+                const tailMat = i < 5 ? gray : white;
+                const tailPart = new THREE.Mesh(tailGeo, tailMat);
+                const angle = (i / 8) * Math.PI * 0.6;
+                tailPart.position.set(0, -0.1 - i * 0.08, -0.5 - Math.cos(angle) * i * 0.1);
+                cat.add(tailPart);
+            }
+            
+            cat.position.set(0, 0.8, 0);
+            scene.add(cat);
+            console.log('Gato creado');
+        }
+        
+        function createInitialScene() {
+            for(let i = 0; i < 20; i++) {
+                createGround(i * 10 - 50);
+            }
+            
+            for(let i = 0; i < 10; i++) {
+                createBuilding(i * 20 - 100, -15);
+                createBuilding(i * 20 - 100, 15);
+            }
+            
+            for(let i = 0; i < 30; i++) {
+                createAmbientParticle();
+            }
+            
+            console.log('Escena inicial creada');
+        }
+        
+        function createGround(z) {
+            const asphaltTexture = createAsphaltTexture();
+            asphaltTexture.wrapS = THREE.RepeatWrapping;
+            asphaltTexture.wrapT = THREE.RepeatWrapping;
+            asphaltTexture.repeat.set(4, 1);
+            
+            const groundGeo = new THREE.PlaneGeometry(12, 10);
+            const groundMat = new THREE.MeshPhongMaterial({ map: asphaltTexture, shininess: 10 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.z = z;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            groundTiles.push(ground);
+            
+            for(let i = -1; i <= 1; i++) {
+                const lineGeo = new THREE.PlaneGeometry(0.1, 10);
+                const lineMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+                const line = new THREE.Mesh(lineGeo, lineMat);
+                line.rotation.x = -Math.PI / 2;
+                line.position.set(i * 2.5, 0.01, z);
+                scene.add(line);
+                groundTiles.push(line);
+            }
+        }
+        
+        function createBuilding(z, x) {
+            const height = Math.random() * 15 + 10;
+            const width = Math.random() * 3 + 2;
+            
+            const brickTexture = createBrickTexture();
+            brickTexture.wrapS = THREE.RepeatWrapping;
+            brickTexture.wrapT = THREE.RepeatWrapping;
+            brickTexture.repeat.set(width / 2, height / 4);
+            
+            const windowTexture = createWindowTexture();
+            windowTexture.wrapS = THREE.RepeatWrapping;
+            windowTexture.wrapT = THREE.RepeatWrapping;
+            windowTexture.repeat.set(2, Math.floor(height / 4));
+            
+            const buildingGeo = new THREE.BoxGeometry(width, height, width);
+            const materials = [
+                new THREE.MeshPhongMaterial({ map: brickTexture }),
+                new THREE.MeshPhongMaterial({ map: brickTexture }),
+                new THREE.MeshPhongMaterial({ map: windowTexture }),
+                new THREE.MeshPhongMaterial({ color: 0x333333 }),
+                new THREE.MeshPhongMaterial({ map: brickTexture }),
+                new THREE.MeshPhongMaterial({ map: brickTexture })
+            ];
+            
+            const building = new THREE.Mesh(buildingGeo, materials);
+            building.position.set(x, height / 2, z);
+            building.castShadow = true;
+            building.receiveShadow = true;
+            scene.add(building);
+            buildings.push(building);
+        }
+        
+        function createObstacle() {
+            const lane = lanes[Math.floor(Math.random() * 3)];
+            const type = Math.floor(Math.random() * 3);
+            let obstacle;
+            
+            if(type === 0) {
+                obstacle = new THREE.Mesh(geometries.car, materials.car.clone());
+                obstacle.material.color.setHex(Math.random() * 0xffffff);
+                obstacle.position.y = 0.4;
+                obstacle.castShadow = true;
+            } else if(type === 1) {
+                const boxCanvas = document.createElement('canvas');
+                boxCanvas.width = 128;
+                boxCanvas.height = 128;
+                const boxCtx = boxCanvas.getContext('2d');
+                boxCtx.fillStyle = '#8B4513';
+                boxCtx.fillRect(0, 0, 128, 128);
+                boxCtx.strokeStyle = '#A0522D';
+                boxCtx.lineWidth = 3;
+                boxCtx.strokeRect(10, 10, 108, 108);
+                boxCtx.strokeRect(20, 20, 88, 88);
+                
+                materials.box.map = new THREE.CanvasTexture(boxCanvas);
+                obstacle = new THREE.Mesh(geometries.box, materials.box);
+                obstacle.position.y = 0.5;
+                obstacle.castShadow = true;
+            } else {
+                obstacle = new THREE.Mesh(geometries.cone, materials.cone);
+                obstacle.position.y = 0.4;
+                obstacle.castShadow = true;
+            }
+            
+            obstacle.position.x = lane;
+            obstacle.position.z = -100;
+            scene.add(obstacle);
+            obstacles.push(obstacle);
+        }
+        
+        function createCollectible() {
+            const lane = lanes[Math.floor(Math.random() * 3)];
+            const fishGroup = new THREE.Group();
+            
+            const fishTexture = createFishTexture();
+            materials.fish.map = fishTexture;
+            const body = new THREE.Mesh(geometries.fishBody, materials.fish);
+            body.scale.set(1, 0.6, 0.4);
+            fishGroup.add(body);
+            
+            const tail = new THREE.Mesh(geometries.fishTail, materials.fish);
+            tail.position.set(-0.3, 0, 0);
+            tail.rotation.z = -Math.PI / 2;
+            fishGroup.add(tail);
+            
+            const light = new THREE.PointLight(0xffd700, 1, 5);
+            fishGroup.add(light);
+            
+            fishGroup.position.set(lane, 1.2, -100);
+            scene.add(fishGroup);
+            collectibles.push(fishGroup);
+        }
+        
+        function createPowerUp() {
+            const lane = lanes[Math.floor(Math.random() * 3)];
+            const type = Math.floor(Math.random() * 3);
+            const powerUpGroup = new THREE.Group();
+            
+            let color, icon;
+            switch(type) {
+                case 0: color = 0x00ff88; icon = '⚡'; break;
+                case 1: color = 0xffd700; icon = '🧲'; break;
+                case 2: color = 0x0096ff; icon = '🛡️'; break;
+            }
+            
+            materials.powerUp.color.setHex(color);
+            materials.powerUp.emissive.setHex(color);
+            const sphere = new THREE.Mesh(geometries.powerUp, materials.powerUp);
+            powerUpGroup.add(sphere);
+            
+            const light = new THREE.PointLight(color, 1, 5);
+            powerUpGroup.add(light);
+            
+            powerUpGroup.position.set(lane, 1.2, -100);
+            powerUpGroup.userData = { type: type, icon: icon };
+            scene.add(powerUpGroup);
+            powerUps.push(powerUpGroup);
+        }
+        
+        function createAmbientParticle() {
+            const types = ['leaf', 'sparkle', 'paper'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            
+            const particle = new THREE.Mesh(geometries[type], materials[type]);
+            
+            particle.position.set(
+                (Math.random() - 0.5) * 30,
+                Math.random() * 10 + 2,
+                -Math.random() * 100
+            );
+            
+            particle.userData = {
+                type: type,
+                velocity: {
+                    x: (Math.random() - 0.5) * 0.02,
+                    y: -0.01 - Math.random() * 0.02,
+                    z: gameSpeed * 0.5
+                },
+                rotationSpeed: (Math.random() - 0.5) * 0.02,
+                life: 1,
+                maxLife: 200 + Math.random() * 100
+            };
+            
+            scene.add(particle);
+            ambientParticles.push(particle);
+        }
+        
+        function createParticle(x, y, z) {
+            const colors = [0xffd700, 0xffa500, 0xffff00];
+            materials.particle.color.setHex(colors[Math.floor(Math.random() * colors.length)]);
+            const particle = new THREE.Mesh(geometries.particle, materials.particle);
+            particle.position.set(x, y, z);
+            particle.velocity = {
+                x: (Math.random() - 0.5) * 0.2,
+                y: Math.random() * 0.2 + 0.1,
+                z: (Math.random() - 0.5) * 0.2
+            };
+            particle.life = 1;
+            scene.add(particle);
+            particles.push(particle);
+        }
+        
+        function onKeyDown(e) {
+            if(!gameStarted || gameOver) return;
+            
+            if(e.key === 'ArrowLeft' && currentLane > 0) {
+                currentLane--;
+            } else if(e.key === 'ArrowRight' && currentLane < 2) {
+                currentLane++;
+            } else if(e.key === ' ' && !isJumping && cat.position.y <= 0.9) {
+                isJumping = true;
+                jumpVelocity = JUMP_POWER;
+                e.preventDefault();
+            } else if(e.key === 'Shift' && !isJumping && !isSliding) {
+                isSliding = true;
+                cat.scale.y = 0.5;
+                cat.position.y = 0.5;
+            } else if(e.key === 'p' || e.key === 'P') {
+                togglePause();
+            }
+        }
+        
+        function onKeyUp(e) {
+            if(e.key === 'Shift' && isSliding) {
+                isSliding = false;
+                cat.scale.y = 1;
+            }
+        }
+        
+        function togglePause() {
+            if(!gameStarted || gameOver) return;
+            
+            gamePaused = !gamePaused;
+            document.getElementById('pauseBtn').textContent = gamePaused ? 'CONTINUAR' : 'PAUSA';
+            
+            if(!gamePaused) {
+                animate();
+            }
+        }
+        
+        function updateCat() {
+            const targetX = lanes[currentLane];
+            const diff = targetX - cat.position.x;
+            cat.position.x += diff * 0.2;
+            
+            if(isJumping || cat.position.y > 0.8) {
+                jumpVelocity -= GRAVITY;
+                cat.position.y += jumpVelocity;
+                
+                if(cat.position.y <= 0.8) {
+                    cat.position.y = 0.8;
+                    jumpVelocity = 0;
+                    isJumping = false;
+                }
+            }
+            
+            if(!isJumping && !isSliding) {
+                cat.position.y = 0.8 + Math.abs(Math.sin(Date.now() * 0.01)) * 0.05;
+                // Running animation
+                cat.children.forEach(child => {
+                    if (child.userData.isLeg) {
+                        const phase = child.userData.index % 2 === 0 ? 1 : -1;
+                        child.position.y = -0.35 + Math.sin(Date.now() * 0.01 + child.userData.index * Math.PI / 2) * 0.1 * phase;
+                    }
+                });
+            }
+            
+            cat.rotation.y = Math.sin(Date.now() * 0.005) * 0.1;
+            
+            if(activePowerUps.speed) {
+                cat.scale.x = 1 + Math.sin(Date.now() * 0.01) * 0.1;
+                cat.scale.z = 1 + Math.sin(Date.now() * 0.01) * 0.1;
+            } else {
+                cat.scale.x = 1;
+                cat.scale.z = 1;
+            }
+        }
+        
+        function updateObstacles() {
+            for(let i = obstacles.length - 1; i >= 0; i--) {
+                obstacles[i].position.z += gameSpeed * (activePowerUps.speed ? 1.5 : 1);
+                
+                const dx = Math.abs(cat.position.x - obstacles[i].position.x);
+                const dz = Math.abs(cat.position.z - obstacles[i].position.z);
+                
+                if(dx < 0.8 && dz < 1.2) {
+                    if(activePowerUps.shield) {
+                        activePowerUps.shield = false;
+                        document.getElementById('shieldEffect').style.opacity = '0';
+                        updatePowerUpIndicator();
+                        scene.remove(obstacles[i]);
+                        obstacles.splice(i, 1);
+                        playSound('hit');
+                    } else if(!isSliding && cat.position.y < 1.5) {
+                        playSound('hit');
+                        endGame();
+                    } else if(isSliding && obstacles[i].position.y > 0.7) {
+                        playSound('hit');
+                        endGame();
+                    }
+                }
+                
+                if(obstacles[i].position.z > 15) {
+                    scene.remove(obstacles[i]);
+                    obstacles.splice(i, 1);
+                    score += 10;
+                }
+            }
+        }
+        
+        function updateCollectibles() {
+            for(let i = collectibles.length - 1; i >= 0; i--) {
+                collectibles[i].position.z += gameSpeed * (activePowerUps.speed ? 1.5 : 1);
+                collectibles[i].rotation.y += 0.05;
+                collectibles[i].position.y = 1.2 + Math.sin(Date.now() * 0.003 + i) * 0.1;
+                
+                if(activePowerUps.magnet) {
+                    const dx = collectibles[i].position.x - cat.position.x;
+                    const dz = collectibles[i].position.z - cat.position.z;
+                    const distance = Math.sqrt(dx * dx + dz * dz);
+                    
+                    if(distance < 5) {
+                        collectibles[i].position.x -= dx * 0.1;
+                        collectibles[i].position.z -= dz * 0.1;
+                    }
+                }
+                
+                const dx = Math.abs(cat.position.x - collectibles[i].position.x);
+                const dz = Math.abs(cat.position.z - collectibles[i].position.z);
+                
+                if(dx < 1 && dz < 1.5) {
+                    for(let j = 0; j < 15; j++) {
+                        createParticle(
+                            collectibles[i].position.x,
+                            collectibles[i].position.y,
+                            collectibles[i].position.z
+                        );
+                    }
+                    scene.remove(collectibles[i]);
+                    collectibles.splice(i, 1);
+                    coins++;
+                    playSound('collect');
+                    
+                    combo++;
+                    if(comboTimeout) clearTimeout(comboTimeout);
+                    comboTimeout = setTimeout(() => {
+                        combo = 0;
+                        comboMultiplier = 1;
+                        document.getElementById('combo').style.display = 'none';
+                    }, 3000);
+                    
+                    comboMultiplier = Math.min(5, Math.floor(combo / 5) + 1);
+                    document.getElementById('combo').textContent = `Combo: x${comboMultiplier}`;
+                    document.getElementById('combo').style.display = 'block';
+                    
+                    score += 50 * comboMultiplier;
+                } else if(collectibles[i].position.z > 15) {
+                    scene.remove(collectibles[i]);
+                    collectibles.splice(i, 1);
+                    combo = 0;
+                    comboMultiplier = 1;
+                    document.getElementById('combo').style.display = 'none';
+                }
+            }
+        }
+        
+        function updatePowerUps() {
+            for(let i = powerUps.length - 1; i >= 0; i--) {
+                powerUps[i].position.z += gameSpeed;
+                powerUps[i].rotation.y += 0.05;
+                powerUps[i].position.y = 1.2 + Math.sin(Date.now() * 0.003 + i) * 0.2;
+                
+                const dx = Math.abs(cat.position.x - powerUps[i].position.x);
+                const dz = Math.abs(cat.position.z - powerUps[i].position.z);
+                
+                if(dx < 1 && dz < 1.5) {
+                    const type = powerUps[i].userData.type;
+                    const icon = powerUps[i].userData.icon;
+                    
+                    activePowerUps[getPowerUpName(type)] = true;
+                    
+                    const effectElement = document.getElementById(`${getPowerUpName(type)}Effect`);
+                    if (effectElement) {
+                        effectElement.style.opacity = '0.5';
+                        setTimeout(() => {
+                            effectElement.style.opacity = '0';
+                        }, 500);
+                    }
+                    
+                    setTimeout(() => {
+                        activePowerUps[getPowerUpName(type)] = false;
+                        updatePowerUpIndicator();
+                    }, 10000);
+                    
+                    updatePowerUpIndicator();
+                    playSound('powerUp');
+                    
+                    scene.remove(powerUps[i]);
+                    powerUps.splice(i, 1);
+                } else if(powerUps[i].position.z > 15) {
+                    scene.remove(powerUps[i]);
+                    powerUps.splice(i, 1);
+                }
+            }
+        }
+        
+        function getPowerUpName(type) {
+            switch(type) {
+                case 0: return 'speed';
+                case 1: return 'magnet';
+                case 2: return 'shield';
+                default: return '';
+            }
+        }
+        
+        function updatePowerUpIndicator() {
+            const indicator = document.getElementById('powerUpIndicator');
+            if (!indicator) return;
+            
+            const activePowerUpsList = Object.keys(activePowerUps).filter(key => activePowerUps[key]);
+            
+            if(activePowerUpsList.length > 0) {
+                let text = 'Power-ups: ';
+                activePowerUpsList.forEach((powerUp, index) => {
+                    switch(powerUp) {
+                        case 'speed': text += '⚡'; break;
+                        case 'magnet': text += '🧲'; break;
+                        case 'shield': text += '🛡️'; break;
+                    }
+                    if(index < activePowerUpsList.length - 1) text += ' ';
+                });
+                indicator.textContent = text;
+                indicator.style.display = 'block';
+            } else {
+                indicator.style.display = 'none';
+            }
+        }
+        
+        function updateAmbientParticles() {
+            for(let i = ambientParticles.length - 1; i >= 0; i--) {
+                const p = ambientParticles[i];
+                const data = p.userData;
+                
+                p.position.x += data.velocity.x;
+                p.position.y += data.velocity.y;
+                p.position.z += data.velocity.z + gameSpeed * 0.3;
+                
+                if(p.userData.type === 'leaf' || p.userData.type === 'paper') {
+                    p.rotation.z += data.rotationSpeed;
+                    p.rotation.x += data.rotationSpeed * 0.5;
+                }
+                
+                data.life++;
+                
+                if(p.position.z > 15 || p.position.y < -5 || data.life > data.maxLife) {
+                    scene.remove(p);
+                    ambientParticles.splice(i, 1);
+                    createAmbientParticle();
+                }
+            }
+        }
+        
+        function updateWorld() {
+            dayTime = 0.5 + Math.sin(Date.now() * 0.0001) * 0.5;
+            updateSkyColor();
+            
+            for(let i = groundTiles.length - 1; i >= 0; i--) {
+                groundTiles[i].position.z += gameSpeed * (activePowerUps.speed ? 1.5 : 1);
+                if(groundTiles[i].position.z > 30) {
+                    scene.remove(groundTiles[i]);
+                    groundTiles.splice(i, 1);
+                }
+            }
+            
+            if(groundTiles.length < 40) {
+                createGround(-100);
+            }
+            
+            for(let i = buildings.length - 1; i >= 0; i--) {
+                buildings[i].position.z += gameSpeed * (activePowerUps.speed ? 1.5 : 1);
+                if(buildings[i].position.z > 50) {
+                    scene.remove(buildings[i]);
+                    buildings.splice(i, 1);
+                }
+            }
+            
+            if(Math.random() < 0.02) {
+                createBuilding(-100, -15);
+                createBuilding(-100, 15);
+            }
+        }
+        
+        function updateParticles() {
+            for(let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.position.x += p.velocity.x;
+                p.position.y += p.velocity.y;
+                p.position.z += p.velocity.z;
+                p.velocity.y -= 0.01;
+                p.life -= 0.02;
+                p.scale.setScalar(p.life);
+                p.material.opacity = p.life * 0.8;
+                
+                if(p.life <= 0) {
+                    scene.remove(p);
+                    particles.splice(i, 1);
+                }
+            }
+        }
+        
+        function updateUI() {
+            document.getElementById('score').textContent = `Puntos: ${Math.floor(score)}`;
+            document.getElementById('coins').textContent = `🐟 ${coins}`;
+            document.getElementById('speed').textContent = `⚡ ${Math.floor(gameSpeed * 100 * (activePowerUps.speed ? 1.5 : 1))} km/h`;
+            document.getElementById('highScore').textContent = `High Score: ${Math.floor(highScore)}`;
+        }
+        
+        function startGame() {
+            console.log('Iniciando juego...');
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('pauseBtn').style.display = 'block';
+            gameStarted = true;
+            animate();
+        }
+        
+        function endGame() {
+            gameOver = true;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('highScore', highScore);
+            }
+            document.getElementById('gameOver').style.display = 'block';
+            document.getElementById('finalScore').textContent = `Puntuación: ${Math.floor(score)}`;
+            document.getElementById('finalCoins').textContent = `Peces: ${coins}`;
+            document.getElementById('finalHighScore').textContent = `High Score: ${Math.floor(highScore)}`;
+            document.getElementById('pauseBtn').style.display = 'none';
+        }
+        
+        function restartGame() {
+            obstacles.forEach(o => scene.remove(o));
+            collectibles.forEach(c => scene.remove(c));
+            powerUps.forEach(p => scene.remove(p));
+            particles.forEach(p => scene.remove(p));
+            ambientParticles.forEach(p => scene.remove(p));
+            
+            obstacles = [];
+            collectibles = [];
+            powerUps = [];
+            particles = [];
+            ambientParticles = [];
+            activePowerUps = {};
+            
+            score = 0;
+            coins = 0;
+            gameSpeed = 0.4;
+            currentLane = 1;
+            combo = 0;
+            comboMultiplier = 1;
+            cat.position.set(0, 0.8, 0);
+            cat.scale.y = 1;
+            isJumping = false;
+            isSliding = false;
+            jumpVelocity = 0;
+            gameOver = false;
+            gamePaused = false;
+            
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('combo').style.display = 'none';
+            document.getElementById('powerUpIndicator').style.display = 'none';
+            document.getElementById('pauseBtn').style.display = 'block';
+            document.getElementById('pauseBtn').textContent = 'PAUSA';
+            
+            updateUI();
+            animate();
+        }
+        
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        function animate() {
+            if(gameOver || gamePaused) return;
+            
+            requestAnimationFrame(animate);
+            
+            if(gameSpeed < 1) {
+                gameSpeed += 0.0001;
+            }
+            
+            if(Math.random() < 0.02) {
+                createObstacle();
+            }
+            
+            if(Math.random() < 0.01) {
+                createCollectible();
+            }
+            
+            if(Math.random() < 0.005) {
+                createPowerUp();
+            }
+            
+            updateCat();
+            updateObstacles();
+            updateCollectibles();
+            updatePowerUps();
+            updateWorld();
+            updateParticles();
+            updateAmbientParticles();
+            
+            score += 0.5 * (activePowerUps.speed ? 1.5 : 1);
+            if(Math.floor(score) % 20 === 0) {
+                updateUI();
+            }
+            
+            // Smooth camera movement
+            const targetCameraX = cat.position.x * 0.2;
+            camera.position.x += (targetCameraX - camera.position.x) * 0.1;
+            camera.position.z = 10 + gameSpeed * 2;
+            camera.lookAt(cat.position.x * 0.3, 1, 0);
+            
+            renderer.render(scene, camera);
+        }
+        
+        window.addEventListener('load', () => {
+            console.log('Página cargada, inicializando...');
+            init();
+        });
+    </script>
+</body>
+</html>
