@@ -229,6 +229,7 @@
             background: radial-gradient(circle, rgba(0,150,255,0.2) 0%, transparent 70%);
         }
         
+        /* NUEVOS CONTROLES TÁCTILES MEJORADOS */
         .touch-controls {
             position: absolute;
             bottom: 20px;
@@ -241,16 +242,79 @@
             display: none;
         }
         
-        .touch-btn {
-            background: rgba(255, 255, 255, 0.3);
+        .joystick-area {
+            width: 150px;
+            height: 150px;
+            position: relative;
+            touch-action: none;
+        }
+        
+        .joystick-base {
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 50%;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .joystick-thumb {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            transition: transform 0.1s;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .joystick-thumb.active {
+            transform: scale(1.1);
+            background: rgba(255, 255, 255, 1);
+        }
+        
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .action-btn {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.2);
             backdrop-filter: blur(10px);
             border: none;
-            padding: 20px;
-            border-radius: 15px;
-            font-size: 24px;
+            border-radius: 50%;
+            font-size: 32px;
             color: white;
             cursor: pointer;
             touch-action: manipulation;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            transition: all 0.1s ease;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .action-btn:active {
+            transform: scale(0.95);
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .action-btn.jump {
+            background: rgba(76, 175, 80, 0.3);
+        }
+        
+        .action-btn.slide {
+            background: rgba(255, 152, 0, 0.3);
         }
         
         @media (max-width: 768px) {
@@ -258,7 +322,8 @@
                 display: flex;
             }
             #instructions {
-                bottom: 100px;
+                bottom: 180px;
+                font-size: 14px;
             }
             #startScreen h1 {
                 font-size: 48px;
@@ -266,6 +331,48 @@
             #pacoImage {
                 width: 200px;
                 height: 200px;
+            }
+            .joystick-area {
+                width: 130px;
+                height: 130px;
+            }
+            .joystick-base {
+                width: 100px;
+                height: 100px;
+            }
+            .joystick-thumb {
+                width: 50px;
+                height: 50px;
+            }
+            .action-btn {
+                width: 70px;
+                height: 70px;
+                font-size: 28px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .joystick-area {
+                width: 120px;
+                height: 120px;
+            }
+            .joystick-base {
+                width: 90px;
+                height: 90px;
+            }
+            .joystick-thumb {
+                width: 45px;
+                height: 45px;
+            }
+            .action-btn {
+                width: 65px;
+                height: 65px;
+                font-size: 26px;
+            }
+            #instructions {
+                bottom: 170px;
+                font-size: 12px;
+                padding: 10px 15px;
             }
         }
     </style>
@@ -289,11 +396,18 @@
             <div id="finalHighScore">High Score: 0</div>
             <button id="restartBtn">JUGAR DE NUEVO</button>
         </div>
+        
+        <!-- NUEVOS CONTROLES TÁCTILES MEJORADOS -->
         <div class="touch-controls">
-            <button class="touch-btn" id="leftBtn">←</button>
-            <button class="touch-btn" id="jumpBtn">↑</button>
-            <button class="touch-btn" id="slideBtn">↓</button>
-            <button class="touch-btn" id="rightBtn">→</button>
+            <div class="joystick-area" id="joystickArea">
+                <div class="joystick-base">
+                    <div class="joystick-thumb" id="joystickThumb"></div>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button class="action-btn jump" id="jumpBtn">⬆️</button>
+                <button class="action-btn slide" id="slideBtn">⬇️</button>
+            </div>
         </div>
     </div>
     
@@ -326,6 +440,13 @@
         let lanes = [-2.5, 0, 2.5];
         let currentLane = 1;
         let jumpVelocity = 0;
+        
+        // Variables para el joystick
+        let joystickActive = false;
+        let joystickStartX = 0;
+        let joystickStartY = 0;
+        let joystickThumb = null;
+        let joystickBase = null;
         
         let dayTime = 0.5;
         let weather = 'clear';
@@ -540,38 +661,13 @@
             createCat();
             createInitialScene();
             
+            // Inicializar controles táctiles
+            initTouchControls();
+            
             // Load sounds (using placeholder URLs, replace with actual audio files)
             loadSound('https://example.com/collect.mp3', 'collect');
             loadSound('https://example.com/powerup.mp3', 'powerUp');
             loadSound('https://example.com/hit.mp3', 'hit');
-            
-            // Touch controls
-            document.getElementById('leftBtn').addEventListener('touchstart', () => {
-                if (currentLane > 0) currentLane--;
-            });
-            document.getElementById('rightBtn').addEventListener('touchstart', () => {
-                if (currentLane < 2) currentLane++;
-            });
-            document.getElementById('jumpBtn').addEventListener('touchstart', (e) => {
-                if (!isJumping && cat.position.y <= 0.9) {
-                    isJumping = true;
-                    jumpVelocity = JUMP_POWER;
-                    e.preventDefault();
-                }
-            });
-            document.getElementById('slideBtn').addEventListener('touchstart', () => {
-                if (!isJumping && !isSliding) {
-                    isSliding = true;
-                    cat.scale.y = 0.5;
-                    cat.position.y = 0.5;
-                }
-            });
-            document.getElementById('slideBtn').addEventListener('touchend', () => {
-                if (isSliding) {
-                    isSliding = false;
-                    cat.scale.y = 1;
-                }
-            });
             
             document.addEventListener('keydown', onKeyDown);
             document.addEventListener('keyup', onKeyUp);
@@ -584,6 +680,105 @@
             updateUI();
             renderer.render(scene, camera);
             console.log('Juego inicializado');
+        }
+        
+        function initTouchControls() {
+            joystickThumb = document.getElementById('joystickThumb');
+            joystickBase = document.querySelector('.joystick-base');
+            const joystickArea = document.getElementById('joystickArea');
+            
+            // Eventos para el joystick
+            joystickArea.addEventListener('touchstart', handleJoystickStart);
+            joystickArea.addEventListener('touchmove', handleJoystickMove);
+            joystickArea.addEventListener('touchend', handleJoystickEnd);
+            
+            // Eventos para los botones de acción
+            document.getElementById('jumpBtn').addEventListener('touchstart', (e) => {
+                if (!isJumping && cat.position.y <= 0.9) {
+                    isJumping = true;
+                    jumpVelocity = JUMP_POWER;
+                    e.preventDefault();
+                }
+            });
+            
+            document.getElementById('slideBtn').addEventListener('touchstart', () => {
+                if (!isJumping && !isSliding) {
+                    isSliding = true;
+                    cat.scale.y = 0.5;
+                    cat.position.y = 0.5;
+                }
+            });
+            
+            document.getElementById('slideBtn').addEventListener('touchend', () => {
+                if (isSliding) {
+                    isSliding = false;
+                    cat.scale.y = 1;
+                }
+            });
+        }
+        
+        function handleJoystickStart(e) {
+            if (!gameStarted || gameOver) return;
+            
+            joystickActive = true;
+            const touch = e.touches[0];
+            const rect = joystickBase.getBoundingClientRect();
+            
+            joystickStartX = rect.left + rect.width / 2;
+            joystickStartY = rect.top + rect.height / 2;
+            
+            joystickThumb.classList.add('active');
+            e.preventDefault();
+        }
+        
+        function handleJoystickMove(e) {
+            if (!joystickActive) return;
+            
+            const touch = e.touches[0];
+            const deltaX = touch.clientX - joystickStartX;
+            const deltaY = touch.clientY - joystickStartY;
+            
+            // Calcular distancia desde el centro
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            const maxDistance = joystickBase.offsetWidth / 2;
+            
+            // Limitar el movimiento del joystick
+            const limitedDistance = Math.min(distance, maxDistance);
+            const angle = Math.atan2(deltaY, deltaX);
+            
+            // Posicionar el thumb del joystick
+            const thumbX = Math.cos(angle) * limitedDistance;
+            const thumbY = Math.sin(angle) * limitedDistance;
+            
+            joystickThumb.style.transform = `translate(${thumbX}px, ${thumbY}px) scale(1.1)`;
+            
+            // Determinar dirección basada en el ángulo
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                // Movimiento horizontal
+                if (deltaX < -20 && currentLane > 0) {
+                    currentLane--;
+                    joystickActive = false;
+                    setTimeout(() => {
+                        joystickThumb.style.transform = 'translate(0, 0)';
+                        joystickThumb.classList.remove('active');
+                    }, 100);
+                } else if (deltaX > 20 && currentLane < 2) {
+                    currentLane++;
+                    joystickActive = false;
+                    setTimeout(() => {
+                        joystickThumb.style.transform = 'translate(0, 0)';
+                        joystickThumb.classList.remove('active');
+                    }, 100);
+                }
+            }
+            
+            e.preventDefault();
+        }
+        
+        function handleJoystickEnd(e) {
+            joystickActive = false;
+            joystickThumb.style.transform = 'translate(0, 0)';
+            joystickThumb.classList.remove('active');
         }
         
         function updateSkyColor() {
@@ -607,97 +802,110 @@
             const white = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 40 });
             const pink = new THREE.MeshPhongMaterial({ color: 0xffb6c1 });
             
+            // CUERPO - orientado correctamente en el eje Z
             const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 12), gray);
-            body.scale.set(1, 0.8, 1.3);
+            body.scale.set(1.3, 0.8, 1); // Cambiado para que sea más largo en X
             body.castShadow = true;
             cat.add(body);
             
             const chest = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), white);
-            chest.position.set(0, 0, 0.3);
-            chest.scale.set(0.8, 0.9, 0.6);
+            chest.position.set(0.3, 0, 0); // Posicionado hacia adelante en X
+            chest.scale.set(0.6, 0.9, 0.8);
             cat.add(chest);
             
+            // CABEZA - orientada hacia el eje X positivo (adelante)
             const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12), gray);
-            head.position.set(0, 0.35, 0.35);
+            head.position.set(0.8, 0.35, 0); // Posicionada hacia adelante en X
             head.castShadow = true;
             cat.add(head);
             
             const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), white);
-            muzzle.position.set(0, 0.25, 0.6);
-            muzzle.scale.set(0.7, 0.6, 0.5);
+            muzzle.position.set(1.05, 0.25, 0); // Hacia adelante en X
+            muzzle.scale.set(0.5, 0.6, 0.7);
             cat.add(muzzle);
             
             const nose = new THREE.Mesh(new THREE.SphereGeometry(0.04), pink);
-            nose.position.set(0, 0.28, 0.75);
+            nose.position.set(1.2, 0.28, 0); // Hacia adelante en X
             cat.add(nose);
             
+            // OREJAS - orientadas correctamente
             const earGeo = new THREE.ConeGeometry(0.15, 0.3, 4);
             const leftEar = new THREE.Mesh(earGeo, gray);
-            leftEar.position.set(-0.18, 0.55, 0.3);
-            leftEar.rotation.z = -0.3;
+            leftEar.position.set(0.75, 0.55, -0.18); // Ajustadas para mirar hacia adelante
+            leftEar.rotation.x = -0.3;
             cat.add(leftEar);
             
             const rightEar = new THREE.Mesh(earGeo, gray);
-            rightEar.position.set(0.18, 0.55, 0.3);
-            rightEar.rotation.z = 0.3;
+            rightEar.position.set(0.75, 0.55, 0.18); // Ajustadas para mirar hacia adelante
+            rightEar.rotation.x = 0.3;
             cat.add(rightEar);
             
+            // OJOS - mirando hacia adelante (eje X positivo)
             const eyeGeo = new THREE.SphereGeometry(0.07);
             const eyeWhite = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 100 });
             const leftEye = new THREE.Mesh(eyeGeo, eyeWhite);
-            leftEye.position.set(-0.12, 0.38, 0.62);
-            leftEye.scale.set(1, 1.2, 0.5);
+            leftEye.position.set(1.07, 0.38, -0.12); // Mirando hacia adelante
+            leftEye.scale.set(0.5, 1.2, 1);
             cat.add(leftEye);
             
             const rightEye = new THREE.Mesh(eyeGeo, eyeWhite);
-            rightEye.position.set(0.12, 0.38, 0.62);
-            rightEye.scale.set(1, 1.2, 0.5);
+            rightEye.position.set(1.07, 0.38, 0.12); // Mirando hacia adelante
+            rightEye.scale.set(0.5, 1.2, 1);
             cat.add(rightEye);
             
             const pupilGeo = new THREE.SphereGeometry(0.05);
             const pupilGreen = new THREE.MeshPhongMaterial({ color: 0x90ee90, shininess: 80 });
             const leftPupil = new THREE.Mesh(pupilGeo, pupilGreen);
-            leftPupil.position.set(-0.12, 0.38, 0.7);
+            leftPupil.position.set(1.15, 0.38, -0.12); // Mirando hacia adelante
             cat.add(leftPupil);
             
             const rightPupil = new THREE.Mesh(pupilGeo, pupilGreen);
-            rightPupil.position.set(0.12, 0.38, 0.7);
+            rightPupil.position.set(1.15, 0.38, 0.12); // Mirando hacia adelante
             cat.add(rightPupil);
             
             const pupilBlack = new THREE.MeshPhongMaterial({ color: 0x000000 });
             const leftIris = new THREE.Mesh(new THREE.SphereGeometry(0.025), pupilBlack);
-            leftIris.position.set(-0.12, 0.38, 0.73);
-            leftIris.scale.set(0.7, 1.3, 1);
+            leftIris.position.set(1.18, 0.38, -0.12); // Mirando hacia adelante
+            leftIris.scale.set(1, 1.3, 0.7);
             cat.add(leftIris);
             
             const rightIris = new THREE.Mesh(new THREE.SphereGeometry(0.025), pupilBlack);
-            rightIris.position.set(0.12, 0.38, 0.73);
-            rightIris.scale.set(0.7, 1.3, 1);
+            rightIris.position.set(1.18, 0.38, 0.12); // Mirando hacia adelante
+            rightIris.scale.set(1, 1.3, 0.7);
             cat.add(rightIris);
             
+            // PATAS - orientadas correctamente
             for(let i = 0; i < 4; i++) {
                 const legGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.4);
                 const leg = new THREE.Mesh(legGeo, i < 2 ? gray : white);
-                leg.position.x = (i % 2 === 0) ? -0.18 : 0.18;
-                leg.position.y = -0.35;
-                leg.position.z = (i < 2) ? 0.2 : -0.2;
+                
+                // Patas delanteras y traseras orientadas correctamente
+                if(i < 2) { // Patas delanteras
+                    leg.position.set(0.2, -0.35, (i % 2 === 0) ? -0.18 : 0.18);
+                } else { // Patas traseras
+                    leg.position.set(-0.2, -0.35, (i % 2 === 0) ? -0.18 : 0.18);
+                }
+                
                 leg.castShadow = true;
                 leg.userData = { isLeg: true, index: i };
                 cat.add(leg);
             }
             
+            // COLA - posicionada correctamente hacia atrás
             for(let i = 0; i < 8; i++) {
                 const tailGeo = new THREE.SphereGeometry(0.08 - i * 0.008);
                 const tailMat = i < 5 ? gray : white;
                 const tailPart = new THREE.Mesh(tailGeo, tailMat);
-                const angle = (i / 8) * Math.PI * 0.6;
-                tailPart.position.set(0, -0.1 - i * 0.08, -0.5 - Math.cos(angle) * i * 0.1);
+                tailPart.position.set(-0.5 - i * 0.1, -0.1 - i * 0.08, 0); // Hacia atrás en X
                 cat.add(tailPart);
             }
             
+            // ROTAR TODO EL GATO 90 GRADOS PARA QUE MIRE HACIA ADELANTE (EJE Z POSITIVO)
+            cat.rotation.y = -Math.PI / 2;
+            
             cat.position.set(0, 0.8, 0);
             scene.add(cat);
-            console.log('Gato creado');
+            console.log('Gato creado mirando hacia adelante (eje Z positivo)');
         }
         
         function createInitialScene() {
@@ -970,7 +1178,8 @@
                 });
             }
             
-            cat.rotation.y = Math.sin(Date.now() * 0.005) * 0.1;
+            // EL GATO YA NO GIRA, MIRA SIEMPRE HACIA ADELANTE (EJE Z POSITIVO)
+            cat.rotation.y = -Math.PI / 2; // Mantener la rotación fija hacia adelante
             
             if(activePowerUps.speed) {
                 cat.scale.x = 1 + Math.sin(Date.now() * 0.01) * 0.1;
