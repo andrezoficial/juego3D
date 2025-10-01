@@ -477,7 +477,12 @@
             particle: new THREE.SphereGeometry(0.1),
             leaf: new THREE.PlaneGeometry(0.2, 0.2),
             sparkle: new THREE.SphereGeometry(0.05),
-            paper: new THREE.PlaneGeometry(0.1, 0.15)
+            paper: new THREE.PlaneGeometry(0.1, 0.15),
+            // Nuevas geometrías para obstáculos
+            spikeBall: new THREE.SphereGeometry(0.6, 12, 8),
+            barrel: new THREE.CylinderGeometry(0.5, 0.5, 1, 8),
+            trashCan: new THREE.CylinderGeometry(0.4, 0.5, 1, 8),
+            constructionCone: new THREE.CylinderGeometry(0, 0.4, 1, 8)
         };
         
         const materials = {
@@ -489,7 +494,13 @@
             particle: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.8 }),
             leaf: new THREE.MeshBasicMaterial({ color: 0x8FBC8F, transparent: true, opacity: 0.7, side: THREE.DoubleSide }),
             sparkle: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 }),
-            paper: new THREE.MeshBasicMaterial({ color: 0xf5f5f5, transparent: true, opacity: 0.6, side: THREE.DoubleSide })
+            paper: new THREE.MeshBasicMaterial({ color: 0xf5f5f5, transparent: true, opacity: 0.6, side: THREE.DoubleSide }),
+            // Nuevos materiales para obstáculos
+            spikeBall: new THREE.MeshPhongMaterial({ color: 0x444444, shininess: 30 }),
+            barrel: new THREE.MeshPhongMaterial({ color: 0x8B4513, shininess: 20 }),
+            trashCan: new THREE.MeshPhongMaterial({ color: 0x2F4F4F, shininess: 40 }),
+            constructionCone: new THREE.MeshPhongMaterial({ color: 0xFF4500, shininess: 60 }),
+            spike: new THREE.MeshPhongMaterial({ color: 0x666666, shininess: 80 })
         };
         
         // Audio setup
@@ -985,63 +996,230 @@
         
         function createObstacle() {
             const lane = lanes[Math.floor(Math.random() * 3)];
-            const type = Math.floor(Math.random() * 3);
+            const type = Math.floor(Math.random() * 5); // 5 tipos de obstáculos diferentes
+            
             let obstacle;
             
-            if(type === 0) {
-                obstacle = new THREE.Mesh(geometries.car, materials.car.clone());
-                obstacle.material.color.setHex(Math.random() * 0xffffff);
-                obstacle.position.y = 0.4;
-                obstacle.castShadow = true;
-            } else if(type === 1) {
-                const boxCanvas = document.createElement('canvas');
-                boxCanvas.width = 128;
-                boxCanvas.height = 128;
-                const boxCtx = boxCanvas.getContext('2d');
-                boxCtx.fillStyle = '#8B4513';
-                boxCtx.fillRect(0, 0, 128, 128);
-                boxCtx.strokeStyle = '#A0522D';
-                boxCtx.lineWidth = 3;
-                boxCtx.strokeRect(10, 10, 108, 108);
-                boxCtx.strokeRect(20, 20, 88, 88);
-                
-                materials.box.map = new THREE.CanvasTexture(boxCanvas);
-                obstacle = new THREE.Mesh(geometries.box, materials.box);
-                obstacle.position.y = 0.5;
-                obstacle.castShadow = true;
-            } else {
-                obstacle = new THREE.Mesh(geometries.cone, materials.cone);
-                obstacle.position.y = 0.4;
-                obstacle.castShadow = true;
+            switch(type) {
+                case 0:
+                    // BOLA CON PINCHOS
+                    obstacle = new THREE.Mesh(geometries.spikeBall, materials.spikeBall);
+                    obstacle.position.y = 0.6;
+                    
+                    // Añadir pinchos a la bola
+                    for(let i = 0; i < 12; i++) {
+                        const spike = new THREE.Mesh(
+                            new THREE.ConeGeometry(0.1, 0.3, 4),
+                            materials.spike
+                        );
+                        const angle = (i / 12) * Math.PI * 2;
+                        spike.position.set(
+                            Math.cos(angle) * 0.6,
+                            Math.sin(angle) * 0.6,
+                            0
+                        );
+                        spike.rotation.z = angle;
+                        obstacle.add(spike);
+                    }
+                    break;
+                    
+                case 1:
+                    // BARRIL
+                    obstacle = new THREE.Mesh(geometries.barrel, materials.barrel);
+                    obstacle.position.y = 0.5;
+                    
+                    // Añadir detalles al barril
+                    const barrelDetail = new THREE.Mesh(
+                        new THREE.TorusGeometry(0.5, 0.05, 8, 16),
+                        new THREE.MeshPhongMaterial({ color: 0x8B0000 })
+                    );
+                    barrelDetail.rotation.x = Math.PI / 2;
+                    barrelDetail.position.y = 0.2;
+                    obstacle.add(barrelDetail);
+                    
+                    const barrelDetail2 = barrelDetail.clone();
+                    barrelDetail2.position.y = -0.2;
+                    obstacle.add(barrelDetail2);
+                    break;
+                    
+                case 2:
+                    // CONTENEDOR DE BASURA
+                    obstacle = new THREE.Mesh(geometries.trashCan, materials.trashCan);
+                    obstacle.position.y = 0.5;
+                    
+                    // Añadir tapa
+                    const lid = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.45, 0.45, 0.1, 8),
+                        new THREE.MeshPhongMaterial({ color: 0x696969 })
+                    );
+                    lid.position.y = 0.55;
+                    obstacle.add(lid);
+                    break;
+                    
+                case 3:
+                    // CONO DE CONSTRUCCIÓN
+                    obstacle = new THREE.Mesh(geometries.constructionCone, materials.constructionCone);
+                    obstacle.position.y = 0.5;
+                    
+                    // Añadir franjas reflectantes
+                    for(let i = 0; i < 3; i++) {
+                        const stripe = new THREE.Mesh(
+                            new THREE.TorusGeometry(0.3 - i * 0.1, 0.03, 8, 16),
+                            new THREE.MeshPhongMaterial({ color: 0xFFFF00, emissive: 0x444400 })
+                        );
+                        stripe.rotation.x = Math.PI / 2;
+                        stripe.position.y = 0.2 - i * 0.2;
+                        obstacle.add(stripe);
+                    }
+                    break;
+                    
+                case 4:
+                    // COCHE (obstáculo clásico pero rediseñado)
+                    obstacle = new THREE.Mesh(geometries.car, new THREE.MeshPhongMaterial({ 
+                        color: 0x222222,
+                        shininess: 50,
+                        specular: 0x111111
+                    }));
+                    obstacle.position.y = 0.4;
+                    
+                    // Añadir ventanas oscuras
+                    const windowGeo = new THREE.PlaneGeometry(0.8, 0.4);
+                    const windowMat = new THREE.MeshPhongMaterial({ 
+                        color: 0x1a1a1a,
+                        transparent: true,
+                        opacity: 0.7
+                    });
+                    
+                    const frontWindow = new THREE.Mesh(windowGeo, windowMat);
+                    frontWindow.position.set(0, 0.3, 0.8);
+                    frontWindow.rotation.x = Math.PI / 2;
+                    obstacle.add(frontWindow);
+                    
+                    const sideWindow = new THREE.Mesh(windowGeo, windowMat);
+                    sideWindow.position.set(0.5, 0.3, 0);
+                    sideWindow.rotation.y = Math.PI / 2;
+                    obstacle.add(sideWindow);
+                    
+                    const sideWindow2 = sideWindow.clone();
+                    sideWindow2.position.set(-0.5, 0.3, 0);
+                    obstacle.add(sideWindow2);
+                    break;
             }
             
             obstacle.position.x = lane;
             obstacle.position.z = -100;
+            obstacle.castShadow = true;
             scene.add(obstacle);
             obstacles.push(obstacle);
         }
         
         function createCollectible() {
             const lane = lanes[Math.floor(Math.random() * 3)];
-            const fishGroup = new THREE.Group();
+            const type = Math.floor(Math.random() * 3); // 3 tipos de coleccionables
             
-            const fishTexture = createFishTexture();
-            materials.fish.map = fishTexture;
-            const body = new THREE.Mesh(geometries.fishBody, materials.fish);
-            body.scale.set(1, 0.6, 0.4);
-            fishGroup.add(body);
+            let collectible;
             
-            const tail = new THREE.Mesh(geometries.fishTail, materials.fish);
-            tail.position.set(-0.3, 0, 0);
-            tail.rotation.z = -Math.PI / 2;
-            fishGroup.add(tail);
+            switch(type) {
+                case 0:
+                    // PEZ DORADO (clásico)
+                    const fishGroup = new THREE.Group();
+                    
+                    const fishTexture = createFishTexture();
+                    const fishMat = new THREE.MeshPhongMaterial({ 
+                        map: fishTexture,
+                        emissive: 0xffd700,
+                        emissiveIntensity: 0.8,
+                        shininess: 100
+                    });
+                    
+                    const body = new THREE.Mesh(geometries.fishBody, fishMat);
+                    body.scale.set(1, 0.6, 0.4);
+                    fishGroup.add(body);
+                    
+                    const tail = new THREE.Mesh(geometries.fishTail, fishMat);
+                    tail.position.set(-0.3, 0, 0);
+                    tail.rotation.z = -Math.PI / 2;
+                    fishGroup.add(tail);
+                    
+                    const light = new THREE.PointLight(0xffd700, 2, 3);
+                    fishGroup.add(light);
+                    
+                    collectible = fishGroup;
+                    break;
+                    
+                case 1:
+                    // MONEDA BRILLANTE
+                    const coinGroup = new THREE.Group();
+                    
+                    const coin = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.4, 0.4, 0.1, 16),
+                        new THREE.MeshPhongMaterial({
+                            color: 0xFFD700,
+                            emissive: 0xCC9900,
+                            emissiveIntensity: 0.5,
+                            shininess: 100
+                        })
+                    );
+                    coin.rotation.x = Math.PI / 2;
+                    coinGroup.add(coin);
+                    
+                    // Efecto de brillo interior
+                    const innerGlow = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.3, 0.3, 0.12, 12),
+                        new THREE.MeshBasicMaterial({
+                            color: 0xFFFF00,
+                            transparent: true,
+                            opacity: 0.3
+                        })
+                    );
+                    innerGlow.rotation.x = Math.PI / 2;
+                    coinGroup.add(innerGlow);
+                    
+                    const coinLight = new THREE.PointLight(0xFFD700, 1.5, 4);
+                    coinGroup.add(coinLight);
+                    
+                    collectible = coinGroup;
+                    break;
+                    
+                case 2:
+                    // ESTRELLA BRILLANTE
+                    const starGroup = new THREE.Group();
+                    
+                    // Crear una estrella con múltiples conos
+                    const starOuter = new THREE.Mesh(
+                        new THREE.ConeGeometry(0.3, 0.6, 5),
+                        new THREE.MeshPhongMaterial({
+                            color: 0xFFFF00,
+                            emissive: 0xFFA500,
+                            emissiveIntensity: 0.7,
+                            shininess: 120
+                        })
+                    );
+                    starOuter.rotation.x = Math.PI;
+                    starGroup.add(starOuter);
+                    
+                    const starInner = new THREE.Mesh(
+                        new THREE.ConeGeometry(0.15, 0.3, 5),
+                        new THREE.MeshPhongMaterial({
+                            color: 0xFFFFFF,
+                            emissive: 0xFFFF00,
+                            emissiveIntensity: 0.5
+                        })
+                    );
+                    starInner.rotation.x = Math.PI;
+                    starInner.position.y = 0.15;
+                    starGroup.add(starInner);
+                    
+                    const starLight = new THREE.PointLight(0xFFFF00, 2, 5);
+                    starGroup.add(starLight);
+                    
+                    collectible = starGroup;
+                    break;
+            }
             
-            const light = new THREE.PointLight(0xffd700, 1, 5);
-            fishGroup.add(light);
-            
-            fishGroup.position.set(lane, 1.2, -100);
-            scene.add(fishGroup);
-            collectibles.push(fishGroup);
+            collectible.position.set(lane, 1.2, -100);
+            scene.add(collectible);
+            collectibles.push(collectible);
         }
         
         function createPowerUp() {
@@ -1061,11 +1239,24 @@
             const sphere = new THREE.Mesh(geometries.powerUp, materials.powerUp);
             powerUpGroup.add(sphere);
             
+            // Añadir anillo rotatorio
+            const ring = new THREE.Mesh(
+                new THREE.TorusGeometry(0.6, 0.05, 8, 16),
+                new THREE.MeshPhongMaterial({
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 0.3
+                })
+            );
+            ring.rotation.x = Math.PI / 2;
+            powerUpGroup.add(ring);
+            ring.userData = { rotationSpeed: 0.02 };
+            
             const light = new THREE.PointLight(color, 1, 5);
             powerUpGroup.add(light);
             
             powerUpGroup.position.set(lane, 1.2, -100);
-            powerUpGroup.userData = { type: type, icon: icon };
+            powerUpGroup.userData = { type: type, icon: icon, ring: ring };
             scene.add(powerUpGroup);
             powerUps.push(powerUpGroup);
         }
@@ -1194,6 +1385,16 @@
             for(let i = obstacles.length - 1; i >= 0; i--) {
                 obstacles[i].position.z += gameSpeed * (activePowerUps.speed ? 1.5 : 1);
                 
+                // Animación de rotación para algunos obstáculos
+                if(obstacles[i].geometry.type === 'SphereGeometry') {
+                    // Bola con pinchos
+                    obstacles[i].rotation.x += 0.02;
+                    obstacles[i].rotation.z += 0.01;
+                } else if(obstacles[i].geometry.type === 'CylinderGeometry') {
+                    // Barriles y conos
+                    obstacles[i].rotation.y += 0.03;
+                }
+                
                 const dx = Math.abs(cat.position.x - obstacles[i].position.x);
                 const dz = Math.abs(cat.position.z - obstacles[i].position.z);
                 
@@ -1226,7 +1427,17 @@
             for(let i = collectibles.length - 1; i >= 0; i--) {
                 collectibles[i].position.z += gameSpeed * (activePowerUps.speed ? 1.5 : 1);
                 collectibles[i].rotation.y += 0.05;
-                collectibles[i].position.y = 1.2 + Math.sin(Date.now() * 0.003 + i) * 0.1;
+                collectibles[i].position.y = 1.2 + Math.sin(Date.now() * 0.003 + i) * 0.2;
+                
+                // Animación adicional para coleccionables
+                if(collectibles[i].children[0].geometry.type === 'CylinderGeometry') {
+                    // Moneda - rotación especial
+                    collectibles[i].rotation.x = Math.PI / 2 + Math.sin(Date.now() * 0.005) * 0.1;
+                } else if(collectibles[i].children[0].geometry.type === 'ConeGeometry') {
+                    // Estrella - pulsación
+                    const scale = 1 + Math.sin(Date.now() * 0.01) * 0.2;
+                    collectibles[i].scale.set(scale, scale, scale);
+                }
                 
                 if(activePowerUps.magnet) {
                     const dx = collectibles[i].position.x - cat.position.x;
@@ -1283,6 +1494,11 @@
                 powerUps[i].position.z += gameSpeed;
                 powerUps[i].rotation.y += 0.05;
                 powerUps[i].position.y = 1.2 + Math.sin(Date.now() * 0.003 + i) * 0.2;
+                
+                // Animación del anillo
+                if(powerUps[i].userData.ring) {
+                    powerUps[i].userData.ring.rotation.z += powerUps[i].userData.ring.userData.rotationSpeed;
+                }
                 
                 const dx = Math.abs(cat.position.x - powerUps[i].position.x);
                 const dz = Math.abs(cat.position.z - powerUps[i].position.z);
