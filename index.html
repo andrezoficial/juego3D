@@ -147,6 +147,18 @@
             font-size: 64px;
             margin-bottom: 30px;
             font-weight: 900;
+            text-align: center;
+        }
+        
+        #pacoImage {
+            width: 300px;
+            height: 300px;
+            margin-bottom: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            object-fit: contain;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
         }
         
         #startBtn {
@@ -158,10 +170,12 @@
             border-radius: 15px;
             cursor: pointer;
             font-weight: 700;
+            transition: all 0.3s ease;
         }
         
         #startBtn:hover {
             transform: scale(1.1);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
         }
         
         #pauseBtn {
@@ -246,6 +260,13 @@
             #instructions {
                 bottom: 100px;
             }
+            #startScreen h1 {
+                font-size: 48px;
+            }
+            #pacoImage {
+                width: 200px;
+                height: 200px;
+            }
         }
     </style>
 </head>
@@ -277,6 +298,8 @@
     </div>
     
     <div id="startScreen">
+        <!-- Aquí agregué la imagen de Paco -->
+        <img id="pacoImage" src="paco.png" alt="Paco" onerror="this.style.display='none'">
         <h1>🐱 PACO IN THE CITY RUNNER</h1>
         <button id="startBtn">COMENZAR</button>
     </div>
