@@ -298,6 +298,7 @@
     </div>
     
     <div id="startScreen">
+        <!-- Aquí agregué la imagen de Paco -->
         <img id="pacoImage" src="paco.png" alt="Paco" onerror="this.style.display='none'">
         <h1>🐱 PACO IN THE CITY RUNNER</h1>
         <button id="startBtn">COMENZAR</button>
@@ -311,7 +312,6 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // Variables principales
         let scene, camera, renderer;
         let cat;
         let gameSpeed = 0.4;
@@ -328,31 +328,24 @@
         let jumpVelocity = 0;
         
         let dayTime = 0.5;
+        let weather = 'clear';
         let combo = 0;
         let comboMultiplier = 1;
         let comboTimeout = null;
         let activePowerUps = {};
+        let ambientParticles = [];
         
-        // Arrays de objetos del juego
         let obstacles = [];
         let collectibles = [];
         let powerUps = [];
         let buildings = [];
         let groundTiles = [];
         let particles = [];
-        let streetLights = [];
-        let billboards = [];
-        let trees = [];
-        let ambientParticles = [];
         
-        // Constantes físicas
         const JUMP_POWER = 0.22;
         const GRAVITY = 0.012;
         
-        // Cache de texturas
-        const textureCache = {};
-        
-        // Geometrías y materiales reutilizables
+        // Reusable geometries and materials
         const geometries = {
             car: new THREE.BoxGeometry(1.5, 0.8, 2.5),
             box: new THREE.BoxGeometry(1, 1, 1),
@@ -363,13 +356,7 @@
             particle: new THREE.SphereGeometry(0.1),
             leaf: new THREE.PlaneGeometry(0.2, 0.2),
             sparkle: new THREE.SphereGeometry(0.05),
-            paper: new THREE.PlaneGeometry(0.1, 0.15),
-            buildingBase: new THREE.BoxGeometry(1, 1, 1),
-            treeTrunk: new THREE.CylinderGeometry(0.1, 0.15, 1, 8),
-            treeTop: new THREE.SphereGeometry(0.4, 8, 6),
-            streetLightPole: new THREE.CylinderGeometry(0.05, 0.05, 3, 8),
-            streetLightHead: new THREE.SphereGeometry(0.15, 8, 6),
-            billboard: new THREE.PlaneGeometry(2, 1.5)
+            paper: new THREE.PlaneGeometry(0.1, 0.15)
         };
         
         const materials = {
@@ -381,32 +368,10 @@
             particle: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.8 }),
             leaf: new THREE.MeshBasicMaterial({ color: 0x8FBC8F, transparent: true, opacity: 0.7, side: THREE.DoubleSide }),
             sparkle: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 }),
-            paper: new THREE.MeshBasicMaterial({ color: 0xf5f5f5, transparent: true, opacity: 0.6, side: THREE.DoubleSide }),
-            building: new THREE.MeshPhongMaterial({ shininess: 30 }),
-            window: new THREE.MeshPhongMaterial({ emissive: 0x87CEEB, emissiveIntensity: 0.3 }),
-            treeTrunk: new THREE.MeshPhongMaterial({ color: 0x8B4513 }),
-            treeTop: new THREE.MeshPhongMaterial({ color: 0x228B22 }),
-            streetLight: new THREE.MeshPhongMaterial({ color: 0x333333 }),
-            streetLightGlow: new THREE.MeshPhongMaterial({ emissive: 0xffffcc, emissiveIntensity: 0.5 }),
-            billboard: new THREE.MeshPhongMaterial({ side: THREE.DoubleSide })
+            paper: new THREE.MeshBasicMaterial({ color: 0xf5f5f5, transparent: true, opacity: 0.6, side: THREE.DoubleSide })
         };
-
-        // Variables de control de rendimiento
-        let lastFrameTime = 0;
-        let frameCount = 0;
-        let lastFpsUpdate = 0;
-        let currentFps = 60;
-        const targetFps = 60;
-        const frameTime = 1000 / targetFps;
         
-        // Límites para objetos
-        const MAX_PARTICLES = 100;
-        const MAX_AMBIENT_PARTICLES = 30;
-        const OBSTACLE_SPAWN_RATE = 0.02;
-        const COLLECTIBLE_SPAWN_RATE = 0.01;
-        const POWERUP_SPAWN_RATE = 0.005;
-        
-        // Configuración de audio
+        // Audio setup
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const sounds = {
             collect: null,
@@ -433,59 +398,45 @@
         }
         
         function createAsphaltTexture() {
-            if (textureCache.asphalt) return textureCache.asphalt;
-            
-            const canvas = document.createElement('canvas');
-            canvas.width = 512;
-            canvas.height = 512;
-            const ctx = canvas.getContext('2d');
-            
-            ctx.fillStyle = '#2a2a2a';
-            ctx.fillRect(0, 0, 512, 512);
-            
-            ctx.fillStyle = '#333333';
-            for(let i = 0; i < 512; i += 4) {
-                for(let j = 0; j < 512; j += 4) {
-                    if(Math.random() > 0.7) {
-                        ctx.fillRect(i, j, 2, 2);
-                    }
-                }
-            }
-            
-            ctx.fillStyle = '#ffff00';
-            for(let i = 0; i < 512; i += 64) {
-                ctx.fillRect(0, i, 512, 2);
-            }
-            
-            textureCache.asphalt = new THREE.CanvasTexture(canvas);
-            textureCache.asphalt.wrapS = THREE.RepeatWrapping;
-            textureCache.asphalt.wrapT = THREE.RepeatWrapping;
-            textureCache.asphalt.repeat.set(8, 50);
-            
-            return textureCache.asphalt;
-        }
-        
-        function createBrickTexture(color = 0x8B0000) {
-            const key = `brick_${color}`;
-            if (textureCache[key]) return textureCache[key];
-            
             const canvas = document.createElement('canvas');
             canvas.width = 256;
             canvas.height = 256;
             const ctx = canvas.getContext('2d');
             
-            const r = (color >> 16) & 255;
-            const g = (color >> 8) & 255;
-            const b = color & 255;
-            
-            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            ctx.fillStyle = '#333333';
             ctx.fillRect(0, 0, 256, 256);
             
-            ctx.fillStyle = `rgb(${r*0.7}, ${g*0.7}, ${b*0.7})`;
+            ctx.fillStyle = '#444444';
+            for(let i = 0; i < 256; i += 8) {
+                for(let j = 0; j < 256; j += 8) {
+                    if((i + j) % 16 === 0) {
+                        ctx.fillRect(i, j, 4, 4);
+                    }
+                }
+            }
+            
+            ctx.fillStyle = '#ffffff';
+            for(let i = 0; i < 256; i += 32) {
+                ctx.fillRect(0, i, 256, 2);
+            }
+            
+            return new THREE.CanvasTexture(canvas);
+        }
+        
+        function createBrickTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#8B0000';
+            ctx.fillRect(0, 0, 256, 256);
+            
+            ctx.fillStyle = '#A52A2A';
             for(let i = 0; i < 256; i += 32) {
                 for(let j = 0; j < 256; j += 16) {
                     if((i / 32 + j / 16) % 2 === 0) {
-                        ctx.fillRect(i + 2, j + 2, 28, 12);
+                        ctx.fillRect(i, j, 30, 14);
                     }
                 }
             }
@@ -498,14 +449,10 @@
                 ctx.fillRect(0, j, 256, 2);
             }
             
-            textureCache[key] = new THREE.CanvasTexture(canvas);
-            return textureCache[key];
+            return new THREE.CanvasTexture(canvas);
         }
         
-        function createWindowTexture(lightOn = false) {
-            const key = `window_${lightOn}`;
-            if (textureCache[key]) return textureCache[key];
-            
+        function createWindowTexture() {
             const canvas = document.createElement('canvas');
             canvas.width = 64;
             canvas.height = 64;
@@ -514,54 +461,16 @@
             ctx.fillStyle = '#2F4F4F';
             ctx.fillRect(0, 0, 64, 64);
             
-            if (lightOn) {
-                ctx.fillStyle = '#87CEEB';
-                ctx.fillRect(4, 4, 56, 56);
-                
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-                ctx.fillRect(10, 10, 20, 20);
-                ctx.fillRect(40, 40, 10, 10);
-            } else {
-                ctx.fillStyle = '#1a1a2e';
-                ctx.fillRect(4, 4, 56, 56);
-                
-                if (Math.random() > 0.7) {
-                    ctx.fillStyle = 'rgba(135, 206, 235, 0.3)';
-                    ctx.fillRect(15, 15, 10, 10);
-                }
-            }
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(4, 4, 56, 56);
             
-            textureCache[key] = new THREE.CanvasTexture(canvas);
-            return textureCache[key];
-        }
-        
-        function createBuildingTexture() {
-            if (textureCache.building) return textureCache.building;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.fillRect(10, 10, 20, 20);
             
-            const canvas = document.createElement('canvas');
-            canvas.width = 128;
-            canvas.height = 128;
-            const ctx = canvas.getContext('2d');
-            
-            ctx.fillStyle = '#404040';
-            ctx.fillRect(0, 0, 128, 128);
-            
-            ctx.fillStyle = '#606060';
-            for(let i = 0; i < 128; i += 16) {
-                for(let j = 0; j < 128; j += 16) {
-                    if((i + j) % 32 === 0) {
-                        ctx.fillRect(i, j, 12, 12);
-                    }
-                }
-            }
-            
-            textureCache.building = new THREE.CanvasTexture(canvas);
-            return textureCache.building;
+            return new THREE.CanvasTexture(canvas);
         }
         
         function createFishTexture() {
-            if (textureCache.fish) return textureCache.fish;
-            
             const canvas = document.createElement('canvas');
             canvas.width = 128;
             canvas.height = 64;
@@ -589,38 +498,6 @@
             ctx.arc(85, 25, 4, 0, Math.PI * 2);
             ctx.fill();
             
-            textureCache.fish = new THREE.CanvasTexture(canvas);
-            return textureCache.fish;
-        }
-        
-        function createBillboardTexture() {
-            const ads = [
-                { bg: '#e74c3c', text: 'SALE!', color: 'white' },
-                { bg: '#3498db', text: 'NEW!', color: 'white' },
-                { bg: '#2ecc71', text: 'OPEN', color: 'white' },
-                { bg: '#f39c12', text: 'HOT', color: 'black' }
-            ];
-            
-            const ad = ads[Math.floor(Math.random() * ads.length)];
-            
-            const canvas = document.createElement('canvas');
-            canvas.width = 256;
-            canvas.height = 192;
-            const ctx = canvas.getContext('2d');
-            
-            ctx.fillStyle = ad.bg;
-            ctx.fillRect(0, 0, 256, 192);
-            
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 4;
-            ctx.strokeRect(2, 2, 252, 188);
-            
-            ctx.fillStyle = ad.color;
-            ctx.font = 'bold 40px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(ad.text, 128, 96);
-            
             return new THREE.CanvasTexture(canvas);
         }
         
@@ -628,6 +505,7 @@
             console.log('Inicializando juego...');
             
             scene = new THREE.Scene();
+            
             updateSkyColor();
             
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -635,25 +513,19 @@
             camera.lookAt(0, 0, 0);
             
             const canvas = document.getElementById('gameCanvas');
-            renderer = new THREE.WebGLRenderer({ 
-                canvas, 
-                antialias: false,
-                powerPreference: "high-performance"
-            });
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            renderer.physicallyCorrectLights = true;
-            renderer.outputEncoding = THREE.sRGBEncoding;
             
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
             scene.add(ambientLight);
             
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
             directionalLight.position.set(10, 20, 10);
             directionalLight.castShadow = true;
-            directionalLight.shadow.mapSize.width = 1024;
-            directionalLight.shadow.mapSize.height = 1024;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
             directionalLight.shadow.camera.near = 0.5;
             directionalLight.shadow.camera.far = 50;
             directionalLight.shadow.camera.left = -20;
@@ -662,25 +534,52 @@
             directionalLight.shadow.camera.bottom = -20;
             scene.add(directionalLight);
             
-            const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x8B4513, 0.4);
+            const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x8B4513, 0.3);
             scene.add(hemiLight);
-            
-            const cityLight1 = new THREE.PointLight(0xff4444, 0.5, 30);
-            cityLight1.position.set(-20, 15, -50);
-            scene.add(cityLight1);
-            
-            const cityLight2 = new THREE.PointLight(0x4444ff, 0.5, 30);
-            cityLight2.position.set(20, 15, -50);
-            scene.add(cityLight2);
             
             createCat();
             createInitialScene();
             
+            // Load sounds (using placeholder URLs, replace with actual audio files)
             loadSound('https://example.com/collect.mp3', 'collect');
             loadSound('https://example.com/powerup.mp3', 'powerUp');
             loadSound('https://example.com/hit.mp3', 'hit');
             
-            setupEventListeners();
+            // Touch controls
+            document.getElementById('leftBtn').addEventListener('touchstart', () => {
+                if (currentLane > 0) currentLane--;
+            });
+            document.getElementById('rightBtn').addEventListener('touchstart', () => {
+                if (currentLane < 2) currentLane++;
+            });
+            document.getElementById('jumpBtn').addEventListener('touchstart', (e) => {
+                if (!isJumping && cat.position.y <= 0.9) {
+                    isJumping = true;
+                    jumpVelocity = JUMP_POWER;
+                    e.preventDefault();
+                }
+            });
+            document.getElementById('slideBtn').addEventListener('touchstart', () => {
+                if (!isJumping && !isSliding) {
+                    isSliding = true;
+                    cat.scale.y = 0.5;
+                    cat.position.y = 0.5;
+                }
+            });
+            document.getElementById('slideBtn').addEventListener('touchend', () => {
+                if (isSliding) {
+                    isSliding = false;
+                    cat.scale.y = 1;
+                }
+            });
+            
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            window.addEventListener('resize', onResize);
+            
+            document.getElementById('startBtn').addEventListener('click', startGame);
+            document.getElementById('restartBtn').addEventListener('click', restartGame);
+            document.getElementById('pauseBtn').addEventListener('click', togglePause);
             
             updateUI();
             renderer.render(scene, camera);
@@ -695,11 +594,9 @@
             scene.background = currentColor;
             
             if (!scene.fog) {
-                scene.fog = new THREE.Fog(currentColor, 30, 150);
+                scene.fog = new THREE.Fog(currentColor, 50, 200);
             } else {
                 scene.fog.color = currentColor;
-                scene.fog.near = 30;
-                scene.fog.far = 150;
             }
         }
         
@@ -710,7 +607,7 @@
             const white = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 40 });
             const pink = new THREE.MeshPhongMaterial({ color: 0xffb6c1 });
             
-            const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 10), gray);
+            const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 12), gray);
             body.scale.set(1, 0.8, 1.3);
             body.castShadow = true;
             cat.add(body);
@@ -720,7 +617,7 @@
             chest.scale.set(0.8, 0.9, 0.6);
             cat.add(chest);
             
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), gray);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12), gray);
             head.position.set(0, 0.35, 0.35);
             head.castShadow = true;
             cat.add(head);
@@ -804,28 +701,16 @@
         }
         
         function createInitialScene() {
-            for(let i = 0; i < 15; i++) {
+            for(let i = 0; i < 20; i++) {
                 createGround(i * 10 - 50);
             }
             
             for(let i = 0; i < 10; i++) {
-                createBuilding(i * 15 - 100, -18);
-                createBuilding(i * 15 - 100, 18);
+                createBuilding(i * 20 - 100, -15);
+                createBuilding(i * 20 - 100, 15);
             }
             
-            for(let i = 0; i < 8; i++) {
-                createStreetLight(i * 20 - 80);
-            }
-            
-            for(let i = 0; i < 3; i++) {
-                createBillboard(i * 40 - 60);
-            }
-            
-            for(let i = 0; i < 6; i++) {
-                createTree(i * 25 - 70);
-            }
-            
-            for(let i = 0; i < 20; i++) {
+            for(let i = 0; i < 30; i++) {
                 createAmbientParticle();
             }
             
@@ -834,13 +719,12 @@
         
         function createGround(z) {
             const asphaltTexture = createAsphaltTexture();
+            asphaltTexture.wrapS = THREE.RepeatWrapping;
+            asphaltTexture.wrapT = THREE.RepeatWrapping;
+            asphaltTexture.repeat.set(4, 1);
             
-            const groundGeo = new THREE.PlaneGeometry(15, 10);
-            const groundMat = new THREE.MeshPhongMaterial({ 
-                map: asphaltTexture, 
-                shininess: 10,
-                side: THREE.DoubleSide
-            });
+            const groundGeo = new THREE.PlaneGeometry(12, 10);
+            const groundMat = new THREE.MeshPhongMaterial({ map: asphaltTexture, shininess: 10 });
             const ground = new THREE.Mesh(groundGeo, groundMat);
             ground.rotation.x = -Math.PI / 2;
             ground.position.z = z;
@@ -848,162 +732,57 @@
             scene.add(ground);
             groundTiles.push(ground);
             
-            const borderGeo = new THREE.PlaneGeometry(2, 10);
-            const borderMat = new THREE.MeshPhongMaterial({ color: 0x444444 });
-            const leftBorder = new THREE.Mesh(borderGeo, borderMat);
-            leftBorder.rotation.x = -Math.PI / 2;
-            leftBorder.position.set(-8.5, 0.01, z);
-            scene.add(leftBorder);
-            groundTiles.push(leftBorder);
-            
-            const rightBorder = new THREE.Mesh(borderGeo, borderMat);
-            rightBorder.rotation.x = -Math.PI / 2;
-            rightBorder.position.set(8.5, 0.01, z);
-            scene.add(rightBorder);
-            groundTiles.push(rightBorder);
+            for(let i = -1; i <= 1; i++) {
+                const lineGeo = new THREE.PlaneGeometry(0.1, 10);
+                const lineMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+                const line = new THREE.Mesh(lineGeo, lineMat);
+                line.rotation.x = -Math.PI / 2;
+                line.position.set(i * 2.5, 0.01, z);
+                scene.add(line);
+                groundTiles.push(line);
+            }
         }
         
         function createBuilding(z, x) {
-            const height = Math.random() * 25 + 15;
-            const width = Math.random() * 4 + 3;
-            const depth = Math.random() * 4 + 3;
+            const height = Math.random() * 15 + 10;
+            const width = Math.random() * 3 + 2;
             
-            const buildingColors = [0x8B0000, 0x2F4F4F, 0x4682B4, 0x556B2F, 0x800080];
-            const color = buildingColors[Math.floor(Math.random() * buildingColors.length)];
-            const brickTexture = createBrickTexture(color);
+            const brickTexture = createBrickTexture();
+            brickTexture.wrapS = THREE.RepeatWrapping;
+            brickTexture.wrapT = THREE.RepeatWrapping;
+            brickTexture.repeat.set(width / 2, height / 4);
             
-            const buildingGeo = new THREE.BoxGeometry(width, height, depth);
+            const windowTexture = createWindowTexture();
+            windowTexture.wrapS = THREE.RepeatWrapping;
+            windowTexture.wrapT = THREE.RepeatWrapping;
+            windowTexture.repeat.set(2, Math.floor(height / 4));
             
-            const buildingMaterial = new THREE.MeshPhongMaterial({ map: brickTexture });
+            const buildingGeo = new THREE.BoxGeometry(width, height, width);
+            const materials = [
+                new THREE.MeshPhongMaterial({ map: brickTexture }),
+                new THREE.MeshPhongMaterial({ map: brickTexture }),
+                new THREE.MeshPhongMaterial({ map: windowTexture }),
+                new THREE.MeshPhongMaterial({ color: 0x333333 }),
+                new THREE.MeshPhongMaterial({ map: brickTexture }),
+                new THREE.MeshPhongMaterial({ map: brickTexture })
+            ];
             
-            const building = new THREE.Mesh(buildingGeo, buildingMaterial);
+            const building = new THREE.Mesh(buildingGeo, materials);
             building.position.set(x, height / 2, z);
             building.castShadow = true;
             building.receiveShadow = true;
-            
-            const windowSpacing = 3;
-            const windowRows = Math.floor(height / windowSpacing) - 1;
-            const windowCols = Math.floor(width / windowSpacing);
-            
-            for(let row = 0; row < windowRows; row++) {
-                for(let col = 0; col < windowCols; col++) {
-                    if(Math.random() > 0.5) {
-                        const window = createWindowMesh();
-                        window.position.set(
-                            (col - (windowCols-1)/2) * windowSpacing,
-                            (row + 1) * windowSpacing,
-                            depth/2 + 0.1
-                        );
-                        building.add(window);
-                    }
-                }
-            }
-            
-            if(Math.random() > 0.7) {
-                const roofGeo = new THREE.CylinderGeometry(width/2, width/2, 1, 4);
-                const roof = new THREE.Mesh(roofGeo, new THREE.MeshPhongMaterial({ color: 0x8B0000 }));
-                roof.position.y = height + 0.5;
-                roof.rotation.y = Math.PI / 4;
-                building.add(roof);
-            }
-            
             scene.add(building);
             buildings.push(building);
         }
         
-        function createWindowMesh() {
-            const windowGeo = new THREE.PlaneGeometry(1.2, 1.2);
-            const isLightOn = Math.random() > 0.5;
-            const windowTexture = createWindowTexture(isLightOn);
-            const windowMat = new THREE.MeshPhongMaterial({ 
-                map: windowTexture,
-                transparent: true,
-                opacity: 0.9
-            });
-            
-            const windowMesh = new THREE.Mesh(windowGeo, windowMat);
-            return windowMesh;
-        }
-        
-        function createStreetLight(z) {
-            const lightGroup = new THREE.Group();
-            
-            const pole = new THREE.Mesh(geometries.streetLightPole, materials.streetLight);
-            pole.position.y = 1.5;
-            pole.castShadow = true;
-            lightGroup.add(pole);
-            
-            const lightHead = new THREE.Mesh(geometries.streetLightHead, materials.streetLightGlow);
-            lightHead.position.y = 3;
-            lightGroup.add(lightHead);
-            
-            const light = new THREE.PointLight(0xffffcc, 0.8, 10);
-            light.position.y = 3;
-            lightGroup.add(light);
-            
-            lightGroup.position.set(Math.random() > 0.5 ? -10 : 10, 0, z);
-            scene.add(lightGroup);
-            streetLights.push(lightGroup);
-        }
-        
-        function createBillboard(z) {
-            const billboardGroup = new THREE.Group();
-            
-            const pole = new THREE.Mesh(geometries.streetLightPole, materials.streetLight);
-            pole.scale.set(1, 2, 1);
-            pole.position.y = 2;
-            billboardGroup.add(pole);
-            
-            const billboard = new THREE.Mesh(geometries.billboard, materials.billboard);
-            billboard.position.y = 4;
-            billboard.rotation.y = Math.PI / 2;
-            billboard.material.map = createBillboardTexture();
-            billboardGroup.add(billboard);
-            
-            const spotLight = new THREE.SpotLight(0xffffff, 0.3, 20, Math.PI / 8);
-            spotLight.position.set(0, 5, 0);
-            spotLight.target.position.set(0, 4, 2);
-            billboardGroup.add(spotLight);
-            billboardGroup.add(spotLight.target);
-            
-            billboardGroup.position.set(Math.random() > 0.5 ? -12 : 12, 0, z);
-            scene.add(billboardGroup);
-            billboards.push(billboardGroup);
-        }
-        
-        function createTree(z) {
-            const treeGroup = new THREE.Group();
-            
-            const trunk = new THREE.Mesh(geometries.treeTrunk, materials.treeTrunk);
-            trunk.position.y = 0.5;
-            trunk.castShadow = true;
-            treeGroup.add(trunk);
-            
-            const top = new THREE.Mesh(geometries.treeTop, materials.treeTop);
-            top.position.y = 1.5;
-            top.castShadow = true;
-            treeGroup.add(top);
-            
-            treeGroup.position.set(
-                (Math.random() - 0.5) * 10 + (Math.random() > 0.5 ? 12 : -12),
-                0,
-                z
-            );
-            scene.add(treeGroup);
-            trees.push(treeGroup);
-        }
-        
         function createObstacle() {
-            if (obstacles.length > 20) return;
-            
             const lane = lanes[Math.floor(Math.random() * 3)];
-            const type = Math.floor(Math.random() * 4);
+            const type = Math.floor(Math.random() * 3);
             let obstacle;
             
             if(type === 0) {
-                const carColors = [0xff0000, 0x0000ff, 0x00ff00, 0xffff00, 0xff00ff];
-                materials.car.color.setHex(carColors[Math.floor(Math.random() * carColors.length)]);
-                obstacle = new THREE.Mesh(geometries.car, materials.car);
+                obstacle = new THREE.Mesh(geometries.car, materials.car.clone());
+                obstacle.material.color.setHex(Math.random() * 0xffffff);
                 obstacle.position.y = 0.4;
                 obstacle.castShadow = true;
             } else if(type === 1) {
@@ -1022,14 +801,8 @@
                 obstacle = new THREE.Mesh(geometries.box, materials.box);
                 obstacle.position.y = 0.5;
                 obstacle.castShadow = true;
-            } else if(type === 2) {
-                obstacle = new THREE.Mesh(geometries.cone, materials.cone);
-                obstacle.position.y = 0.4;
-                obstacle.castShadow = true;
             } else {
-                const barrelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.8, 8);
-                const barrelMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
-                obstacle = new THREE.Mesh(barrelGeo, barrelMat);
+                obstacle = new THREE.Mesh(geometries.cone, materials.cone);
                 obstacle.position.y = 0.4;
                 obstacle.castShadow = true;
             }
@@ -1090,16 +863,14 @@
         }
         
         function createAmbientParticle() {
-            if (ambientParticles.length >= MAX_AMBIENT_PARTICLES) return;
-            
             const types = ['leaf', 'sparkle', 'paper'];
             const type = types[Math.floor(Math.random() * types.length)];
             
             const particle = new THREE.Mesh(geometries[type], materials[type]);
             
             particle.position.set(
-                (Math.random() - 0.5) * 40,
-                Math.random() * 20 + 2,
+                (Math.random() - 0.5) * 30,
+                Math.random() * 10 + 2,
                 -Math.random() * 100
             );
             
@@ -1120,8 +891,6 @@
         }
         
         function createParticle(x, y, z) {
-            if (particles.length >= MAX_PARTICLES) return;
-            
             const colors = [0xffd700, 0xffa500, 0xffff00];
             materials.particle.color.setHex(colors[Math.floor(Math.random() * colors.length)]);
             const particle = new THREE.Mesh(geometries.particle, materials.particle);
@@ -1192,6 +961,7 @@
             
             if(!isJumping && !isSliding) {
                 cat.position.y = 0.8 + Math.abs(Math.sin(Date.now() * 0.01)) * 0.05;
+                // Running animation
                 cat.children.forEach(child => {
                     if (child.userData.isLeg) {
                         const phase = child.userData.index % 2 === 0 ? 1 : -1;
@@ -1407,7 +1177,7 @@
                 }
             }
             
-            if(groundTiles.length < 30) {
+            if(groundTiles.length < 40) {
                 createGround(-100);
             }
             
@@ -1419,45 +1189,9 @@
                 }
             }
             
-            if(Math.random() < 0.01) {
-                createBuilding(-100, -18);
-                createBuilding(-100, 18);
-            }
-            
-            for(let i = streetLights.length - 1; i >= 0; i--) {
-                streetLights[i].position.z += gameSpeed * (activePowerUps.speed ? 1.5 : 1);
-                if(streetLights[i].position.z > 30) {
-                    scene.remove(streetLights[i]);
-                    streetLights.splice(i, 1);
-                }
-            }
-            
-            if(Math.random() < 0.008) {
-                createStreetLight(-80);
-            }
-            
-            for(let i = billboards.length - 1; i >= 0; i--) {
-                billboards[i].position.z += gameSpeed * (activePowerUps.speed ? 1.5 : 1);
-                if(billboards[i].position.z > 30) {
-                    scene.remove(billboards[i]);
-                    billboards.splice(i, 1);
-                }
-            }
-            
-            if(Math.random() < 0.003) {
-                createBillboard(-60);
-            }
-            
-            for(let i = trees.length - 1; i >= 0; i--) {
-                trees[i].position.z += gameSpeed * (activePowerUps.speed ? 1.5 : 1);
-                if(trees[i].position.z > 30) {
-                    scene.remove(trees[i]);
-                    trees.splice(i, 1);
-                }
-            }
-            
-            if(Math.random() < 0.006) {
-                createTree(-70);
+            if(Math.random() < 0.02) {
+                createBuilding(-100, -15);
+                createBuilding(-100, 15);
             }
         }
         
@@ -1484,43 +1218,6 @@
             document.getElementById('coins').textContent = `🐟 ${coins}`;
             document.getElementById('speed').textContent = `⚡ ${Math.floor(gameSpeed * 100 * (activePowerUps.speed ? 1.5 : 1))} km/h`;
             document.getElementById('highScore').textContent = `High Score: ${Math.floor(highScore)}`;
-        }
-        
-        function setupEventListeners() {
-            document.getElementById('leftBtn').addEventListener('touchstart', () => {
-                if (currentLane > 0) currentLane--;
-            });
-            document.getElementById('rightBtn').addEventListener('touchstart', () => {
-                if (currentLane < 2) currentLane++;
-            });
-            document.getElementById('jumpBtn').addEventListener('touchstart', (e) => {
-                if (!isJumping && cat.position.y <= 0.9) {
-                    isJumping = true;
-                    jumpVelocity = JUMP_POWER;
-                    e.preventDefault();
-                }
-            });
-            document.getElementById('slideBtn').addEventListener('touchstart', () => {
-                if (!isJumping && !isSliding) {
-                    isSliding = true;
-                    cat.scale.y = 0.5;
-                    cat.position.y = 0.5;
-                }
-            });
-            document.getElementById('slideBtn').addEventListener('touchend', () => {
-                if (isSliding) {
-                    isSliding = false;
-                    cat.scale.y = 1;
-                }
-            });
-            
-            document.addEventListener('keydown', onKeyDown);
-            document.addEventListener('keyup', onKeyUp);
-            window.addEventListener('resize', onResize);
-            
-            document.getElementById('startBtn').addEventListener('click', startGame);
-            document.getElementById('restartBtn').addEventListener('click', restartGame);
-            document.getElementById('pauseBtn').addEventListener('click', togglePause);
         }
         
         function startGame() {
@@ -1550,20 +1247,12 @@
             powerUps.forEach(p => scene.remove(p));
             particles.forEach(p => scene.remove(p));
             ambientParticles.forEach(p => scene.remove(p));
-            buildings.forEach(b => scene.remove(b));
-            streetLights.forEach(sl => scene.remove(sl));
-            billboards.forEach(bb => scene.remove(bb));
-            trees.forEach(t => scene.remove(t));
             
             obstacles = [];
             collectibles = [];
             powerUps = [];
             particles = [];
             ambientParticles = [];
-            buildings = [];
-            streetLights = [];
-            billboards = [];
-            trees = [];
             activePowerUps = {};
             
             score = 0;
@@ -1579,8 +1268,6 @@
             jumpVelocity = 0;
             gameOver = false;
             gamePaused = false;
-            
-            createInitialScene();
             
             document.getElementById('gameOver').style.display = 'none';
             document.getElementById('combo').style.display = 'none';
@@ -1598,17 +1285,8 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
         
-        function animate(currentTime) {
+        function animate() {
             if(gameOver || gamePaused) return;
-            
-            const deltaTime = currentTime - lastFrameTime;
-            
-            if (deltaTime < frameTime) {
-                requestAnimationFrame(animate);
-                return;
-            }
-            
-            lastFrameTime = currentTime - (deltaTime % frameTime);
             
             requestAnimationFrame(animate);
             
@@ -1616,15 +1294,15 @@
                 gameSpeed += 0.0001;
             }
             
-            if(Math.random() < OBSTACLE_SPAWN_RATE) {
+            if(Math.random() < 0.02) {
                 createObstacle();
             }
             
-            if(Math.random() < COLLECTIBLE_SPAWN_RATE) {
+            if(Math.random() < 0.01) {
                 createCollectible();
             }
             
-            if(Math.random() < POWERUP_SPAWN_RATE) {
+            if(Math.random() < 0.005) {
                 createPowerUp();
             }
             
@@ -1641,19 +1319,13 @@
                 updateUI();
             }
             
+            // Smooth camera movement
             const targetCameraX = cat.position.x * 0.2;
             camera.position.x += (targetCameraX - camera.position.x) * 0.1;
             camera.position.z = 10 + gameSpeed * 2;
             camera.lookAt(cat.position.x * 0.3, 1, 0);
             
             renderer.render(scene, camera);
-            
-            frameCount++;
-            if (currentTime - lastFpsUpdate >= 1000) {
-                currentFps = frameCount;
-                frameCount = 0;
-                lastFpsUpdate = currentTime;
-            }
         }
         
         window.addEventListener('load', () => {
